@@ -1,0 +1,154 @@
+profiles:
+
+  EARTH:
+    keyframes:
+      - [0.000, 0.40, [4, 18, 55]]      # WATER_ABYSSAL
+      - [0.050, 0.40, [10, 45, 120]]    # WATER_DEEP
+      - [0.100, 0.50, [30, 100, 200]]   # WATER
+      - [0.145, 0.60, [60, 150, 225]]   # WATER_SHALLOW
+      - [0.150, 0.75, [170, 140, 95]]   # SAND_WET
+      - [0.180, 0.85, [190, 165, 105]]  # SAND
+      - [0.220, 0.85, [140, 145, 85]]   # DRY_SHRUB
+      - [0.270, 0.95, [105, 140, 65]]   # STEPPE
+      - [0.300, 1.00, [75, 145, 55]]    # GRASS
+      - [0.420, 1.00, [75, 145, 55]]    # GRASS
+      - [0.480, 0.90, [40, 95, 25]]     # THICKET
+      - [0.550, 0.80, [30, 75, 10]]     # FOREST
+      - [0.600, 0.70, [20, 55, 5]]      # FOREST_DENSE
+      - [0.660, 0.70, [35, 45, 25]]     # FOREST_DRY
+      - [0.675, 0.70, [35, 45, 25]]     # FOREST_DRY
+      - [0.700, 0.00, [45, 45, 45]]     # BEDROCK
+      - [0.720, 0.00, [45, 45, 45]]     # BEDROCK
+      - [0.790, 0.00, [60, 60, 60]]     # ROCK
+      - [0.805, 0.00, [60, 60, 60]]     # ROCK
+      - [0.825, 0.00, [80, 85, 95]]     # SNOW_MELTING
+      - [0.860, 0.00, [120, 130, 125]]  # SNOW_LOW
+      - [0.895, 0.00, [145, 160, 150]]  # SNOW_MID
+      - [0.930, 0.00, [180, 200, 195]]  # SNOW_HIGH
+      - [0.965, 0.00, [190, 220, 255]]  # SNOW_GLACIER
+      - [1.000, 0.00, [245, 252, 250]]  # SNOW_TOP
+
+  ARID_DESERT:
+    keyframes:
+      - [0.00, 0.70, [160, 90, 50]]    # deep ravine
+      - [0.20, 0.85, [195, 125, 75]]   # canyon floor
+      - [0.45, 1.00, [230, 195, 130]]  # desert sand
+      - [0.70, 0.90, [210, 160, 95]]   # dunes
+      - [0.85, 0.75, [150, 95, 65]]    # mesa rock
+      - [1.00, 0.60, [110, 60, 40]]    # sunbaked ridge
+
+  FROZEN_TUNDRA:
+    keyframes:
+      - [0.00, 0.40, [20, 35, 65]]     # frozen deep
+      - [0.25, 0.55, [65, 95, 140]]    # sheet ice
+      - [0.40, 0.80, [180, 205, 220]]  # frost plains
+      - [0.65, 0.95, [215, 230, 240]]  # packed snow
+      - [0.85, 0.70, [130, 145, 160]]  # glacial stone
+      - [1.00, 0.50, [255, 255, 255]]  # blizzard peak
+
+  ALIEN_NEON_REDFIELD:
+    keyframes:
+      - [0.00, 0.40, [15, 8, 45]]      # LIQUID_ABYSS (Abyssal Navy-Indigo)
+      - [0.05, 0.40, [25, 12, 70]]     # LIQUID_DEEP (Deep Purple-Blue)
+      - [0.10, 0.50, [35, 20, 110]]    # LIQUID_MID (Bioluminescent Blue-Violet)
+      - [0.15, 0.60, [45, 45, 160]]    # LIQUID_SHALLOW (Electric Indigo Shore)
+      - [0.20, 0.75, [95, 30, 120]]    # SHORE_SEDIMENT (Damp Orchid Purple)
+      - [0.25, 0.85, [145, 20, 100]]   # FUNGAL_BEACH (Magenta Spore Sand)
+      - [0.30, 0.85, [180, 15, 75]]    # INFESTED_SHRUB (Deep Crimson Sedge)
+      - [0.35, 0.95, [215, 10, 50]]    # BIO_STEPPE (Vivid Neon Red Fields)
+      - [0.40, 1.00, [245, 20, 40]]    # BIO_GRASS (Saturated Scarlet Turf)
+      - [0.45, 0.90, [195, 10, 55]]    # TANGLE_THICKET (Dense Ruby Brambles)
+      - [0.50, 0.80, [135, 5, 60]]     # SPORE_FOREST (Dark Maroon Stalks)
+      - [0.55, 0.70, [85, 0, 55]]      # CANOPY_DENSE (Shadow Amethyst Canopy)
+      - [0.60, 0.70, [50, 5, 40]]      # WOODLAND_DRY (Muted Wine-Leaved Scrub)
+      - [0.65, 0.00, [25, 15, 30]]     # VOID_BEDROCK (Metallic Pitch Obsidian)
+      - [0.70, 0.00, [45, 35, 50]]     # CRAG_ROCK (Dark Violet Basalt)
+      - [0.75, 0.00, [75, 60, 85]]     # ALIVE_STONE (Iron-Rich Purple Ore)
+      - [0.80, 0.00, [95, 95, 125]]    # OUT_CROP (Muted Lavender Slate)
+      - [0.85, 0.00, [80, 135, 160]]   # SHIMMER_PEAK (Desaturated Cyan Shards)
+      - [0.90, 0.00, [50, 175, 195]]   # CRYSTAL_CRUST (Electric Turquoise Veins)
+      - [0.95, 0.00, [110, 215, 230]]  # VEIN_GLACIER (Glowing Aquamarine Shards)
+      - [1.00, 0.00, [210, 245, 250]]  # APEX_CROWN (Blinding Ether-Cyan Core)
+
+  ALIEN_SULFUR_BASIN:
+    keyframes:
+      - [0.00, 0.40, [35, 55, 15]]     # SLIME_ABYSS (Murky Acidic Olive)
+      - [0.05, 0.40, [60, 85, 20]]     # CHEMICAL_DEEP (Toxic Green Sludge)
+      - [0.10, 0.50, [100, 130, 25]]   # TOXIC_MID (Corrosive Sulfur Green)
+      - [0.15, 0.60, [155, 185, 40]]   # SLIME_SHALLOW (Fluorescent Lime Glow)
+      - [0.20, 0.75, [185, 165, 60]]   # ACID_CRUST (Leached Ochre Crust)
+      - [0.25, 0.85, [165, 130, 75]]   # BRINE_SAND (Damp Copper Sand)
+      - [0.30, 0.85, [125, 115, 90]]   # SHRUB_DRY (Desaturated Olive Shrub)
+      - [0.35, 0.95, [85, 120, 95]]    # XERO_STEPPE (Muted Sage-Teal Heath)
+      - [0.40, 1.00, [55, 135, 110]]   # VEG_GRASS (Vivid Teal Moss Turf)
+      - [0.45, 0.90, [30, 105, 95]]    # THICK_MOSS (Saturated Jade Shallows)
+      - [0.50, 0.80, [15, 80, 80]]     # REED_FOREST (Deep Sea-Green Stalks)
+      - [0.55, 0.70, [10, 60, 65]]     # WOOD_DENSE (Dark Malachite Jungle)
+      - [0.60, 0.70, [25, 45, 50]]     # FOREST_DRY (Weathered Teal Bark)
+      - [0.65, 0.00, [40, 35, 40]]     # SULFUR_BEDROCK (Dark Charcoal Shale)
+      - [0.70, 0.00, [75, 55, 50]]     # COPPER_ROCK (Oxidized Bronze Spires)
+      - [0.75, 0.00, [115, 75, 60]]    # MINERAL_SEAM (Raw Copper Ore Spires)
+      - [0.80, 0.00, [155, 95, 70]]    # CLIFF_LOW (Sienna Mudstone Ledges)
+      - [0.85, 0.00, [185, 125, 85]]   # MESA_MID (Rich Terracotta Ridges)
+      - [0.90, 0.00, [215, 160, 110]]  # PEAK_HIGH (Sunbaked Ochre Crags)
+      - [0.95, 0.00, [235, 195, 150]]  # TOP_CRUST (Gilded Desert Spires)
+      - [1.00, 0.00, [250, 230, 205]]  # APEX_TOP (Luminescent Cream Peak)
+
+  ALIEN_EXOTIC_AURORA:
+    keyframes:
+      - [0.00, 0.40, [65, 20, 70]]     # VAPOR_ABYSS (Dark Plum Plasma)
+      - [0.05, 0.40, [95, 30, 100]]    # ETHYL_DEEP (Saturated Orchid Fluid)
+      - [0.10, 0.50, [135, 45, 130]]   # FLUID_MID (Exotic Magenta Shimmer)
+      - [0.15, 0.60, [185, 80, 170]]   # CONDENSATE_SHALLOW (Bright Pink Vapor)
+      - [0.20, 0.75, [195, 110, 130]]  # SHORE_SILT (Coral Pearl Sediment)
+      - [0.25, 0.85, [215, 135, 90]]   # XENO_SAND (Warm Peach Sand)
+      - [0.30, 0.85, [225, 145, 50]]   # SHRUB_LOW (Amber Spore Bushes)
+      - [0.35, 0.95, [235, 165, 30]]   # MOSS_FIELDS (Bioluminescent Ochre)
+      - [0.40, 1.00, [245, 195, 20]]   # AURORA_GRASS (Vibrant Neon Yellow Turf)
+      - [0.45, 0.90, [210, 175, 25]]   # BUSH_THICKET (Golden Honey Ferns)
+      - [0.50, 0.80, [170, 145, 30]]   # STALK_FOREST (Muted Mustard Stems)
+      - [0.55, 0.70, [125, 110, 30]]   # WOODS_DENSE (Dark Olive-Gold Canopy)
+      - [0.60, 0.70, [90, 80, 35]]     # WOODS_DRY (Desaturated Khaki Scrub)
+      - [0.65, 0.00, [50, 45, 55]]     # ANCHOR_BEDROCK (Dark Titanium Core)
+      - [0.70, 0.00, [75, 75, 90]]     # SLATE_ROCK (Cold Pewter Cliffs)
+      - [0.75, 0.00, [105, 110, 125]]  # CHROME_SEAM (Polished Steel Ledges)
+      - [0.80, 0.00, [140, 150, 165]]  # MOUNTAIN_LOW (Bright Metal Slag)
+      - [0.85, 0.00, [175, 190, 205]]  # MOUNTAIN_MID (Silver Glacier Rims)
+      - [0.90, 0.00, [205, 220, 235]]  # MOUNTAIN_HIGH (Iridescent Foil Cap)
+      - [0.95, 0.00, [230, 240, 250]]  # SHIMMER_GLACIER (Pure Xenon White)
+      - [1.00, 0.00, [255, 255, 255]]  # APEX_PEAK (Blinding Laser Silver)
+
+  ALIEN_AMETHYST_CHASM:
+    keyframes:
+      - [0.00, 0.40, [25, 5, 35]]      # VOID_ABYSS (Midnight Velvet Purple)
+      - [0.05, 0.40, [45, 10, 60]]     # CHASM_DEEP (Dark Royal Violet)
+      - [0.10, 0.50, [65, 15, 90]]     # POOL_MID (Rich Amethyst Liquid)
+      - [0.15, 0.60, [90, 30, 120]]    # SHORE_SHALLOW (Glowing Violet Fringe)
+      - [0.20, 0.75, [110, 50, 135]]   # SILT_BEACH (Plum-Tinted Mud)
+      - [0.25, 0.85, [135, 70, 155]]   # BRINE_SAND (Soft Lavender Dust)
+      - [0.30, 0.85, [110, 55, 130]]   # SHRUB_DRY (Weathered Grape Sedge)
+      - [0.35, 0.95, [90, 45, 115]]    # CHASM_STEPPE (Muted Purple Turf)
+      - [0.40, 1.00, [115, 55, 145]]   # MOSS_FIELDS (Deep Magenta-Violet Fields)
+      - [0.45, 0.90, [85, 35, 110]]    # WEED_THICKET (Shadowed Purple Thorns)
+      - [0.50, 0.80, [60, 20, 80]]     # VINE_FOREST (Dark Tyrian Stalks)
+      - [0.55, 0.70, [40, 10, 55]]     # WOODS_DENSE (Deep Obsidian-Plum Woods)
+      - [0.60, 0.70, [50, 25, 60]]     # CHASM_DRY (Desaturated Mauve Bark)
+      - [0.65, 0.00, [45, 40, 45]]     # CLIFF_BEDROCK (Dull Basalt Grey)
+      - [0.70, 0.00, [80, 75, 80]]     # ROCK_FACE (Pale Ash Crags)
+      - [0.75, 0.00, [115, 110, 115]]  # ROCK_HIGH (Light Granite Rims)
+      - [0.80, 0.00, [150, 145, 155]]  # BONE_PLATEAU (Bone-Grey Shale)
+      - [0.85, 0.00, [185, 180, 190]]  # PEAK_LOW (Chalky Alabaster Slate)
+      - [0.90, 0.00, [215, 210, 220]]  # PEAK_MID (Pale Violet-Tinted White)
+      - [0.95, 0.00, [235, 235, 240]]  # PEAK_HIGH (Stark Ivory Rims)
+      - [1.00, 0.00, [250, 252, 255]]  # CRYSTAL_TOP (Luminescent Frost Summit)
+
+
+# ============================================================================
+# STRATA PROFILE CONFIGURATION LEGEND
+# ============================================================================
+#
+# keyframes: List of [elevation_threshold, speed_multiplier, [R, G, B]].
+#   - elevation_threshold: Elevation level between 0.0 and 1.0.
+#   - speed_multiplier: Kinematic movement speed multiplier on this terrain.
+#   - [R, G, B]: RGB color tuple [0-255].
+# ============================================================================

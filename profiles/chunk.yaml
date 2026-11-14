@@ -1,0 +1,26 @@
+profiles:
+
+  PERFORMANT:
+    chunk_size: 128
+    load_margin: 0.75
+    unload_margin: 1.25
+
+  BALANCED:
+    chunk_size: 128
+    load_margin: 1.00
+    unload_margin: 1.75
+
+  CINEMATIC:
+    chunk_size: 128
+    load_margin: 1.50
+    unload_margin: 2.50
+
+
+# ============================================================================
+# CHUNK PROFILE CONFIGURATION LEGEND
+# ============================================================================
+#
+# chunk_size:     World dimension per chunk in pixels (must be power of 2).
+# load_margin:    Elliptical buffer radius beyond screen corners (min 0.75).
+# unload_margin:  Purge threshold radius beyond load margin (hysteresis buffer).
+# ============================================================================

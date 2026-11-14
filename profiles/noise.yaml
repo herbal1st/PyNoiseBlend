@@ -1,0 +1,96 @@
+profiles:
+
+  MICRO_SIMPLEX:
+    noise_type: "SIMPLEX"
+    seed: 420
+    scale: 140.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MICRO_PERLIN:
+    noise_type: "PERLIN"
+    seed: 420
+    scale: 75.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MICRO_VALUE:
+    noise_type: "VALUE"
+    seed: 420
+    scale: 50.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MID_SIMPLEX:
+    noise_type: "SIMPLEX"
+    seed: 888
+    scale: 600.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MID_PERLIN:
+    noise_type: "PERLIN"
+    seed: 888
+    scale: 350.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MID_VALUE:
+    noise_type: "VALUE"
+    seed: 888
+    scale: 300.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MACRO_SIMPLEX:
+    noise_type: "SIMPLEX"
+    seed: 1337
+    scale: 3000.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MACRO_PERLIN:
+    noise_type: "PERLIN"
+    seed: 1337
+    scale: 1500.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+  MACRO_VALUE:
+    noise_type: "VALUE"
+    seed: 1337
+    scale: 1200.0
+    octaves: 1
+    decay: 0.50
+    lacunarity: 2.0
+    sub_sample_factor: 2
+
+
+# ============================================================================
+# NOISE PROFILE CONFIGURATION LEGEND
+# ============================================================================
+#
+# noise_type:         Base mathematical algorithm ("SIMPLEX", "PERLIN", "VALUE").
+# seed:               Master integer randomization seed for permutation/hash.
+# scale:              Feature wavelength in world units/pixels (larger = wider).
+# octaves:            Number of fractal detail accumulation passes [1 - 8].
+# decay:              Persistence multiplier scaling amplitude per octave [0-1].
+# lacunarity:         Frequency multiplier advancing wavelength per octave.
+# sub_sample_factor:  Coarse sampling divider [1 = native, 2 = 2x, 4 = 4x etc].
+# ============================================================================

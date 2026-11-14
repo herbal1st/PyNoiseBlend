@@ -1,0 +1,88 @@
+PYNOISEBLEND - SOURCE-AVAILABLE END USER LICENSE AGREEMENT (EULA)
+
+Copyright (c) 2026 herbal1st. All Rights Reserved.
+
+IMPORTANT - READ CAREFULLY:
+This End User License Agreement ("Agreement") is a legal agreement between you
+(either an individual or a single entity) and the Copyright Holder (herbal1st)
+governing the use, evaluation, and study of the PyNoiseBlend software, source
+code, algorithms, and associated documentation ("Software").
+
+
+1. GRANT OF EVALUATION & NON-COMMERCIAL LICENSE
+-------------------------------------------------------------------------------
+Subject to the terms and restrictions of this Agreement, the Copyright Holder
+hereby grants you a personal, non-exclusive, non-transferable, royalty-free
+license to view, download, compile, run, and modify the source code of the
+Software solely for:
+  (a) Personal non-commercial evaluation;
+  (b) Academic and educational study; and
+  (c) Non-commercial procedural graphics and algorithmic research.
+
+Public forking of the repository within the GitHub platform for the purposes
+permitted above is authorized, provided that all copyright notices,
+proprietary markers, and this Agreement remain fully intact and unaltered.
+
+
+2. RESTRICTIONS
+-------------------------------------------------------------------------------
+Except as explicitly authorized in Section 1 or via a separate written
+commercial license agreement signed by the Copyright Holder, you may not:
+  (a) Use, incorporate, bundle, or distribute the Software, or any derivative
+      work thereof, in whole or in part, in any commercial product, game,
+      interactive simulation, software-as-a-service (SaaS), paid software, or
+      revenue-generating venture.
+  (b) Sell, rent, lease, sublicense, repackage, host, publish, or distribute
+      the Software or its underlying procedural algorithms on any digital asset
+      marketplace, package manager, or software repository.
+  (c) Create, distribute, or publish closed-source or open-source libraries or
+      tools derived directly from this Software for third-party consumption.
+  (d) Remove, alter, or obscure any copyright, trademark, authorship header,
+      or proprietary legend contained within the Software.
+
+
+3. MEDIA, DEMONSTRATION & STREAMING PERMISSION
+-------------------------------------------------------------------------------
+Notwithstanding the restrictions in Section 2, you are granted permission to
+capture, record, broadcast, and publish non-interactive media (including static
+screenshots, gameplay clips, video walk-throughs, and live streams) demonstrating
+the Software in operation, including on ad-supported or monetized platforms
+(e.g., YouTube, Twitch, tech blogs), subject to the following condition:
+  - Visible attribution must be provided identifying the Software as
+    "PyNoiseBlend by herbal1st" with a prominent link to the official
+    repository.
+
+
+4. INTELLECTUAL PROPERTY & OWNERSHIP
+-------------------------------------------------------------------------------
+The Software is licensed, not sold. All right, title, interest, patents,
+copyrights, and intellectual property rights in and to the Software—including
+but not limited to all procedural noise implementations, chunk-streaming
+architectures, isoline rendering kernels, strata compilations, and mathematical
+formulas—are and shall remain the exclusive property of herbal1st.
+
+
+5. COMMERCIAL LICENSING & ENTERPRISE INTEGRATION
+-------------------------------------------------------------------------------
+To obtain commercial rights, per-title game integration licenses, custom
+procedural pipeline integration, or enterprise deployment agreements, please
+contact the Copyright Holder:
+
+    Contact   : herbal1st
+    Repository: https://github.com/herbal1st/pynoiseblend
+
+
+6. DISCLAIMER OF WARRANTY & LIMITATION OF LIABILITY
+-------------------------------------------------------------------------------
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE, INCLUDING BUT NOT LIMITED TO HARDWARE FAILURE, DATA LOSS, OR
+INTERRUPTION OF BUSINESS.
+
+
+ALL RIGHTS NOT EXPRESSLY GRANTED ARE RESERVED

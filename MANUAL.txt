@@ -1,0 +1,469 @@
+ ____           __  __                              ____    ___                      __     
+/\  _`\        /\ \/\ \          __                /\  _`\ /\_ \                    /\ \    
+\ \ \L\ \__  __\ \ `\\ \    ___ /\_\    ____     __\ \ \L\ \//\ \      __    ___    \_\ \   
+ \ \ ,__/\ \/\ \\ \ , ` \  / __`\/\ \  /',__\  /'__`\ \  _ <'\ \ \   /'__`\/' _ `\  /'_` \  
+  \ \ \/\ \ \_\ \\ \ \`\ \/\ \L\ \ \ \/\__, `\/\  __/\ \ \L\ \\_\ \_/\  __//\ \/\ \/\ \L\ \ 
+   \ \_\ \/`____ \\ \_\ \_\ \____/\ \_\/\____/\ \____\\ \____//\____\ \____\ \_\ \_\ \___,_\
+    \/_/  `/___/> \\/_/\/_/\/___/  \/_/\/___/  \/____/ \/___/ \/____/\/____/\/_/\/_/\/__,_ /
+             /\___/                                                                         
+             \/__/                                                                          
+===============================================================================
+                 PYNOISEBLEND - CONFIGURATION MANUAL & FIELD GUIDE
+===============================================================================
+
+[!] CROSS-REFERENCE NOTICE:
+    - This manual covers global runtime and hardware variables in config.py.
+    - Recipes for spatial chunking, procedural noise, world builds, and strata
+      contain dedicated configuration legends directly inside their respective
+      YAML files (profiles/chunk.yaml, noise.yaml, world.yaml, and strata.yaml).
+    - For architectural specifications, mathematical formulations, and memory
+      conventions, refer to README.txt.
+
+
+[DISPLAY & RESOLUTION SETTINGS]
+-------------------------------------------------------------------------------
+APP_TITLE                     : Window title displayed in the operating system
+                                title bar and taskbar.
+                                Metric: Text string (str).
+
+SCREEN_WIDTH                  : Horizontal width of the application window on
+                                your monitor in pixels.
+                                Metric: Pixels (int).
+
+SCREEN_HEIGHT                 : Vertical height of the application window on
+                                your monitor in pixels.
+                                Metric: Pixels (int).
+
+FPS                           : Target frame rate cap controlling simulation
+                                refresh frequency, animation smoothness, and
+                                clock timing (e.g. 60 FPS).
+                                Metric: Hertz / Frames per second (int).
+
+BACKGROUND_COLOR              : Clear color used to wipe the 1D oscilloscope
+                                canvas behind wave signal panels (pure white).
+                                Metric: RGB color tuple (int, int, int).
+
+
+[VIEWPORT & STEPPING MODES]
+-------------------------------------------------------------------------------
+DEFAULT_VIEW_MODE             : Initial viewport active on application startup:
+                                  1 = Mode 1: 1D Wave Oscilloscope
+                                  2 = Mode 2: 2D Spatial Synthesizer
+                                  3 = Mode 3: Raw Procedural Noise Explorer
+                                  4 = Mode 4: Endless Procedural World Explorer
+                                Metric: Integer mode selector [1 - 4] (int).
+
+DEFAULT_TILE_SIZE             : Initial pixel width and height of each block
+                                when retro tile quantization is toggled on.
+                                Metric: Pixels (int).
+
+MIN_TILE_SIZE                 : Smallest power-of-two tile block size allowed
+                                when stepping tile blocks finer (8px).
+                                Metric: Pixels (int).
+
+MAX_TILE_SIZE                 : Largest power-of-two tile block size allowed
+                                before discrete stepping wraps back to smooth.
+                                Metric: Pixels (int).
+
+WARP_FACTOR                   : Coordinate bending strength used by Mode 2's
+                                Warped perspective. Controls how strongly the
+                                warping layer (Relief in 3-layer formulas, or
+                                Crust in 2-layer formulas) bends straight
+                                vertical Base stripes into winding mountain
+                                belts.
+                                Metric: Fraction multiplier [0.0 - 1.0] (float).
+
+
+[RELIEF NET (ISOLINE) SETTINGS]
+-------------------------------------------------------------------------------
+DEFAULT_NET_ENABLED           : Initial state of the Topographical Relief Net
+                                (contour line view) on startup. In 1D, switches
+                                solid fills to a colored curve; in 2D/3D/4D,
+                                switches raster terrain to elevation contours.
+                                Metric: Toggle boolean (bool).
+
+DEFAULT_NET_INTERVALS         : Number of elevation steps dividing the terrain
+                                between sea level (0.0) and mountain peaks
+                                (1.0). For example, 9.0 intervals create 10
+                                distinct elevation contour lines.
+                                Metric: Float interval count (float).
+
+DEFAULT_NET_BANDWIDTH         : Line thickness tolerance used in continuous
+                                smooth mode to draw unbroken contour lines.
+                                Metric: Float height tolerance (float).
+
+COLOR_NET_BACKGROUND          : Deep midnight-slate background color drawn
+                                behind contour lines in Net mode.
+                                Metric: RGB color tuple (int, int, int).
+
+
+[MATHEMATICAL ELEVATION BUDGETS]
+-------------------------------------------------------------------------------
+CRUST_BUDGET                  : Maximum height share allocated to the broad
+                                Continental Crust wave (e.g. 0.40 = 40%).
+                                In budget formulas, CRUST_BUDGET + RELIEF_BUDGET
+                                equals 1.000, preventing mountain peaks from
+                                flattening against a ceiling.
+                                Metric: Fraction share [0.0 - 1.0] (float).
+
+RELIEF_BUDGET                 : Maximum height share allocated to base detail
+                                mountains and undulating hills (e.g. 0.60 =
+                                60%).
+                                Metric: Fraction share [0.0 - 1.0] (float).
+
+MIN_RELIEF_FACTOR             : Minimum relief multiplier floor ensuring that
+                                even in the flattest plains or valleys, local
+                                ripples and low hills do not vanish completely.
+                                Metric: Fraction multiplier [0.0 - 1.0] (float).
+
+
+[WAVE FREQUENCY DEFAULTS]
+-------------------------------------------------------------------------------
+DEFAULT_BASE_CYCLES           : Initial number of wave cycles across the screen
+                                for the Base Detail wave (controlling local
+                                undulating hills, valleys, and ridges).
+                                Metric: Cycles across screen (float).
+
+DEFAULT_RELIEF_CYCLES         : Initial number of wave cycles for the Relief
+                                Multiplier envelope (controlling where mountains
+                                swell versus where valleys and plains flatten).
+                                Metric: Cycles across screen (float).
+
+DEFAULT_CRUST_CYCLES          : Initial number of wave cycles for Continental
+                                Crust (the broad tectonic ground floor that
+                                lifts continents or drops ocean basins).
+                                Metric: Cycles across screen (float).
+
+
+[STARTING ELEVATION PHASE OFFSETS]
+-------------------------------------------------------------------------------
+BASE_START                    : Target starting height of the Base Detail wave
+                                at its phase origin (0.00 = trough, 0.50 =
+                                mid-slope, 1.00 = peak).
+                                Metric: Normalized height [0.0 - 1.0] (float).
+
+RELIEF_START                  : Target starting height for the Relief
+                                Multiplier wave at its phase origin.
+                                Metric: Normalized height [0.0 - 1.0] (float).
+
+CRUST_START                   : Target starting height for the Continental Crust
+                                wave at its phase origin.
+                                Metric: Normalized height [0.0 - 1.0] (float).
+
+
+[FREQUENCY TUNING RATES & CLAMPS]
+-------------------------------------------------------------------------------
+CYCLE_ZOOM_RATE               : Continuous percentage zoom rate for wave
+                                frequencies. When holding LEFT or RIGHT arrows
+                                (with SHIFT for one layer or unmodified for
+                                all), wave cycles multiply or divide smoothly
+                                per second while keeping Mode 2 linear waves
+                                anchored at the screen center.
+                                Metric: Rate multiplier per second (float).
+
+BASE_MIN_CYCLES               : Lower and upper safety limits restricting Base
+BASE_MAX_CYCLES                 Detail wave cycles in Modes 1 and 2 to prevent
+                                flat signals or aliasing flicker.
+                                Metric: Cycles across screen (float).
+
+RELIEF_MIN_CYCLES             : Lower and upper safety limits restricting Relief
+RELIEF_MAX_CYCLES               Multiplier envelope cycle tuning.
+                                Metric: Cycles across screen (float).
+
+CRUST_MIN_CYCLES              : Lower and upper safety limits restricting
+CRUST_MAX_CYCLES                Continental Crust tectonic cycle tuning.
+                                Metric: Cycles across screen (float).
+
+
+[NOISE SCALE TUNING RATES & CLAMPS]
+-------------------------------------------------------------------------------
+NOISE_SCALE_ZOOM_RATE         : How quickly terrain feature sizes tighten or
+                                widen when holding LEFT or RIGHT arrows in
+                                Modes 3 and 4 (RIGHT zooms out to smaller,
+                                denser features; LEFT zooms in to larger ones,
+                                anchored at the screen center).
+                                Metric: Rate multiplier per second (float).
+
+MOUSE_ZOOM_SENSITIVITY        : Controls how quickly waves and terrain features
+                                zoom when dragging horizontally with the Right
+                                Mouse Button (RMB) across all 4 modes, using
+                                smooth exponential scaling per pixel dragged.
+                                Metric: Zoom rate per pixel (float).
+
+NOISE_MIN_SCALE               : Smallest allowed noise feature width in pixels.
+                                Prevents shrinking features so far down that
+                                terrain turns into grainy static.
+                                Metric: Minimum feature size in pixels (float).
+
+NOISE_MAX_SCALE               : Largest allowed noise feature width in pixels.
+                                Prevents stretching landmasses out so wide that
+                                the visible screen appears flat.
+                                Metric: Maximum feature size in pixels (float).
+
+
+[EXTENDED NOISE PARAMETER CLAMPS & STEP RATES]
+-------------------------------------------------------------------------------
+OCTAVE_MIN                    : Minimum number of noise detail passes (1).
+                                At 1 octave, terrain shows only the broad,
+                                smooth foundation with no extra crags.
+                                Metric: Octaves count (int).
+
+OCTAVE_MAX                    : Maximum number of noise detail passes allowed
+                                (6). Capped at 6 to prevent runaway math and
+                                frame rate drops on low-spec hardware.
+                                Metric: Octaves count (int).
+
+DECAY_MIN                     : Smallest allowed persistence/decay multiplier
+                                (0.05). Makes higher detail octaves fade away
+                                almost completely, leaving smooth hills.
+                                Metric: Fraction share [0.0 - 1.0] (float).
+
+DECAY_MAX                     : Largest allowed persistence multiplier (1.00).
+                                Keeps higher octaves strong, resulting in rough,
+                                jagged, and craggy landscapes.
+                                Metric: Fraction share [0.0 - 1.0] (float).
+
+DECAY_STEP_RATE               : Rate at which persistence (decay) increases or
+                                decreases per second when scrubbing smoothly.
+                                Metric: Fraction change per second (float).
+
+LACUNARITY_MIN                : Smallest allowed frequency multiplier between
+                                octaves (1.00). Keeps all octaves at the same
+                                wavelength.
+                                Metric: Multiplier factor (float).
+
+LACUNARITY_MAX                : Largest allowed frequency multiplier (4.00).
+                                Rapidly tightens each extra octave into very
+                                fine, high-frequency surface ripples.
+                                Metric: Multiplier factor (float).
+
+LACUNARITY_STEP_RATE          : Rate at which lacunarity increases or decreases
+                                per second when scrubbing smoothly.
+                                Metric: Multiplier change per second (float).
+
+SUB_SAMPLE_FACTORS            : Tuple of allowed coarse sampling dividers:
+                                  (1, 2, 4, 8)
+                                1x evaluates every pixel at full native detail;
+                                2x evaluates 1/4 of the points; 4x cuts math
+                                by ~93%, and 8x cuts math by ~98% before
+                                smoothly upscaling to native resolution.
+                                Metric: Integer dividers tuple (tuple of ints).
+
+NOISE_TYPES                   : Supported procedural noise algorithms available
+                                for live cycling:
+                                  ("SIMPLEX", "PERLIN", "VALUE")
+                                Metric: Tuple of strings (tuple of str).
+
+
+[PARAMETER MATRIX ROW INDICES]
+-------------------------------------------------------------------------------
+ROW_PROFILE                   : Row index 0 in the Mode 3/4 matrix table.
+                                Displays and cycles the assigned noise preset.
+                                Metric: Integer row index (int).
+
+ROW_SCALE                     : Row index 1. Controls feature size in pixels.
+                                Metric: Integer row index (int).
+
+ROW_OCTAVES                   : Row index 2. Controls number of detail passes.
+                                Metric: Integer row index (int).
+
+ROW_PERSIST                   : Row index 3. Controls octave amplitude decay.
+                                Metric: Integer row index (int).
+
+ROW_LACUNARITY                : Row index 4. Controls octave frequency growth.
+                                Metric: Integer row index (int).
+
+ROW_SUBSAMPLE                 : Row index 5. Controls coarse sampling divider.
+                                Metric: Integer row index (int).
+
+ROW_SEED                      : Row index 6. Controls individual layer seed.
+                                Metric: Integer row index (int).
+
+ROW_WORLD_SEED                : Row index 7. Master world seed row in Mode 4.
+                                Metric: Integer row index (int).
+
+MATRIX_ROW_COUNT              : Total number of rows in the Mode 4 parameter
+                                matrix table (8 rows).
+                                Metric: Integer count (int).
+
+
+[INTERACTIVE SCRUBBING THROTTLING]
+-------------------------------------------------------------------------------
+SCRUB_SUB_SAMPLE_FACTOR       : Temporary grid divider used while actively
+                                zooming frequencies/scales or dragging layer
+                                offsets. Evaluating every 4th point (4) cuts
+                                math workload sharply for fluid live previews;
+                                in Relief Net mode, coarse-cell culling draws
+                                crisp 1px lines directly from this grid before
+                                snapping back to full detail when tuning stops.
+                                Metric: Integer grid divider (int).
+
+SCRUB_SETTLE_DELAY            : Short pause after releasing a keyboard tuning key
+                                before switching from the fast preview back to
+                                full resolution (mouse drags settle immediately
+                                on button release). Prevents brief pauses
+                                between key taps from causing extra rebuilds.
+                                Metric: Delay in seconds (float).
+
+CHUNK_REFINE_BUDGET_PER_FRAME : Maximum number of full-detail terrain chunks
+                                rebuilt per frame after tuning settles in Modes
+                                3 and 4. Spreads work over several frames so
+                                the screen sharpens smoothly from the center
+                                outward without stuttering.
+                                Metric: Chunks per frame (int).
+
+
+[DYNAMIC RESOLUTION FALLBACK LATCH]
+-------------------------------------------------------------------------------
+ENABLE_AUTO_RESOLUTION_FALLBACK: Master performance safety switch. When wired
+                                into the runtime loop and enabled, it monitors
+                                frame rates and shifts chunk generation into
+                                sub-sampled mode if hardware falls behind.
+                                Metric: Toggle boolean (bool).
+
+RESOLUTION_FALLBACK_DIVIDER   : Downscaling divider used when the fallback
+                                latch engages (e.g. 2 evaluates 64x64 points
+                                for a 128x128 chunk, cutting math by 75%
+                                before upscaling smoothly).
+                                Metric: Integer divisor [2, 4, 8] (int).
+
+RESOLUTION_FALLBACK_FPS_THRESHOLD: Minimum acceptable frame rate floor.
+                                Falling below this speed (e.g. 25 FPS) starts
+                                the countdown timer toward engaging the latch.
+                                Metric: Frame rate in Hertz / FPS (int).
+
+RESOLUTION_FALLBACK_TRIGGER_SECONDS: Grace period (in real-world seconds) that
+                                frame rates must stay below the threshold
+                                before latching into lower-res chunk mode,
+                                avoiding false triggers from brief spikes.
+                                Metric: Elapsed seconds (float).
+
+
+[CAMERA NAVIGATION SETTINGS]
+-------------------------------------------------------------------------------
+TEST_PAN_SPEED                : Camera flying speed across terrain in Modes 3
+                                and 4 when holding WASD keys. Scaled by frame
+                                delta time (dt) for uniform speed across PCs
+                                (mouse panning tracks cursor pixels 1:1).
+                                Metric: Pixels per second (float).
+
+
+[ACTIVE PROFILE SELECTORS]
+-------------------------------------------------------------------------------
+ACTIVE_CHUNK_PROFILE          : Spatial chunk preset to load from
+                                profiles/chunk.yaml on startup (e.g. BALANCED).
+                                Metric: Profile ID string (str).
+
+ACTIVE_WORLD_PROFILE          : Default noise-engine build to load from
+                                profiles/world.yaml on startup (e.g. SIMPLEX,
+                                PERLIN, PERFORMANT). Determines world seed,
+                                sub-sampling, and noise layer bindings.
+                                Metric: Profile ID string (str).
+
+
+[INTERFACE COLORS & DIMENSIONS]
+-------------------------------------------------------------------------------
+COLOR_BG                      : Dark background color used to clear the canvas
+                                behind procedural chunks in Modes 3 and 4.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_PANEL_DIVIDER           : Light grey color used to draw horizontal
+                                dividing rules between 1D oscilloscope panels.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_GRID                    : Soft color used for interior horizontal height
+                                reference lines (0.25, 0.50, 0.75) in 1D panels.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_WAVE                    : Primary dark ink color used to draw active
+                                wave curves in the 1D oscilloscope.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_SILENCED_WAVE           : Muted grey color used to draw the flat zero
+                                baseline in any 1D panel silenced by a 2-layer
+                                formula (such as Panel 2 Relief).
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_SELECTION               : High-contrast electric blue used for active
+                                panel selection frames, focused matrix table
+                                cells, and interactive HUD borders.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_TITLE                   : Crisp dark ink color used for 1D panel title
+                                headers.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_MUTED_TITLE             : De-emphasized grey used for silenced panel titles.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_TITLE_CARD              : Translucent white background drawn behind 1D
+                                oscilloscope panel title cards.
+                                Metric: RGBA color tuple (int, int, int, int).
+
+COLOR_HUD_CARD_2D             : Translucent dark slate background drawn behind
+                                HUD info cards across 2D viewports (Modes 2, 3,
+                                4), the parameter matrix deck, and the footer.
+                                Metric: RGBA color tuple (int, int, int, int).
+
+COLOR_HUD_TEXT_ACTIVE         : Bright amber-gold highlight color used for
+                                active mode headers, footer mode bar text, and
+                                primary status tags.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_HUD_TEXT_NORMAL         : Soft silver-white color used for readable body
+                                text inside HUD info cards and footer controls.
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_HUD_TEXT_MUTED          : De-emphasized slate grey used for silenced table
+                                cells (such as Relief on 2-layer formulas).
+                                Metric: RGB color tuple (int, int, int).
+
+COLOR_INPUT_ACTIVE            : Bright cyan-blue glow color used for text and
+                                highlights when actively typing a seed value.
+                                Metric: RGB color tuple (int, int, int).
+
+
+[OSCILLOSCOPE METRICS]
+-------------------------------------------------------------------------------
+PANEL_COUNT                   : Number of vertically stacked signal panels
+                                rendered in Mode 1 (Base, Relief, Crust, Result).
+                                Metric: Panel count (int).
+
+PANEL_TOP_MARGIN              : Clear space at the top of each 1D panel in
+                                pixels, leaving room for title card headers.
+                                Metric: Pixels (int).
+
+PANEL_BOTTOM_MARGIN           : Clear space at the bottom of component panels
+                                (Panels 1, 2, 3) above the bottom dividing line.
+                                Metric: Pixels (int).
+
+PANEL_COMPOSITE_BOTTOM_MARGIN : Extra bottom margin allocated to Panel 4 (e.g.
+                                64 px) so its 0.00 baseline and fills stay
+                                cleanly above the two-line studio footer card.
+                                Metric: Pixels (int).
+
+PANEL_TITLE_X                 : Top-left coordinate offsets docking panel
+PANEL_TITLE_Y                   title cards within their respective panels.
+                                Metric: Pixels (int).
+
+PANEL_TITLE_TEXT_X            : Inner padding offsets positioning rendered
+PANEL_TITLE_TEXT_Y              header text within its translucent card box.
+                                Metric: Pixels (int).
+
+PANEL_DIVIDER_WIDTH           : Stroke thickness of horizontal panel borders.
+                                Metric: Pixels (int).
+
+PANEL_SELECTION_WIDTH         : Stroke thickness of the active blue selection box.
+                                Metric: Pixels (int).
+
+COMPONENT_LINE_WIDTH          : Stroke thickness for individual component wave
+                                curves (Base, Relief, Crust) in Panels 1 to 3.
+                                Metric: Pixels (int).
+
+COMPOSITE_LINE_WIDTH          : Thicker stroke used for the composite result
+                                curve in Panel 4 to provide visual prominence.
+                                Metric: Pixels (int).
+
+===============================================================================
+[!] END OF MANUAL | MAINTAIN ALIGNMENT WITH CONFIG.PY AND PROFILE LEGENDS
+===============================================================================
