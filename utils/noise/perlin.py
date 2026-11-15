@@ -45,14 +45,14 @@ class PerlinNoise:
         x_grid: NDArray[np.float32],
         y_grid: NDArray[np.float32],
     ) -> NDArray[np.float32]:
-        """
-        Evaluates 2D Perlin noise across coordinate arrays in [-1.0, 1.0].
-        """
-        cell_x = np.floor(x_grid).astype(np.int32) & 255
-        cell_y = np.floor(y_grid).astype(np.int32) & 255
+        """Evaluates 2D Perlin noise across coordinate arrays in [-1, 1]."""
+        floor_x = np.floor(x_grid)
+        floor_y = np.floor(y_grid)
+        cell_x = floor_x.astype(np.int32) & 255
+        cell_y = floor_y.astype(np.int32) & 255
 
-        xf = x_grid - np.floor(x_grid)
-        yf = y_grid - np.floor(y_grid)
+        xf = x_grid - floor_x
+        yf = y_grid - floor_y
 
         u_fade = xf * xf * xf * (xf * (xf * 6.0 - 15.0) + 10.0)
         v_fade = yf * yf * yf * (yf * (yf * 6.0 - 15.0) + 10.0)

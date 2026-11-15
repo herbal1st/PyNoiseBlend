@@ -1,4 +1,4 @@
-"""2D spatial synthesizer renderer generating surfaces and relief nets."""
+"""2D spatial synthesizer renderer generating surfaces and nets."""
 
 from typing import Dict, List, Optional, Tuple
 import numpy as np
@@ -7,10 +7,10 @@ import pygame
 import config
 from core.contour_engine import (
     ContourScratch,
-    bake_tile_contour_edges,
     create_contour_scratch,
     draw_contour_net_to_surface,
     draw_culled_contour_net_to_surface,
+    draw_tile_contour_edges_to_surface,
 )
 from core.formulas import PRESETS_2D
 from studio.renderers.base_renderer import BaseRenderer
@@ -38,7 +38,14 @@ class Renderer2DSynth(BaseRenderer):
         """Colors compact or native heightfields and scales onto target."""
         if state.net_enabled:
             if state.tile_stepping_enabled:
-                self._draw_tile_contour_edges(heightfield, lut, state)
+                draw_tile_contour_edges_to_surface(
+                    surface=self.rendered_surface,
+                    heightfield=heightfield,
+                    lut=lut,
+                    intervals=state.net_intervals,
+                    tile_size=state.tile_size,
+                    bg_color=config.COLOR_NET_BACKGROUND,
+                )
             else:
                 self._render_net_surface(heightfield, lut, state)
             return
@@ -75,7 +82,7 @@ class Renderer2DSynth(BaseRenderer):
         self.draw_studio_footer(active_mode=2)
 
     def _get_contour_scratch(self) -> ContourScratch:
-        """Lazily allocates reusable (W, H) buffers for contour rendering."""
+        """Lazily allocates reusable (W, H) buffers for contours."""
         if self._contour_scratch is None:
             self._contour_scratch = create_contour_scratch(
                 self.width, self.height
@@ -87,7 +94,7 @@ class Renderer2DSynth(BaseRenderer):
         width: int,
         height: int,
     ) -> pygame.Surface:
-        """Returns cached offscreen surface matching compact grid size."""
+        """Returns cached offscreen surface matching compact grid."""
         key = (width, height)
         surface = self._scratch_surfaces.get(key)
         if surface is None:
@@ -125,53 +132,6 @@ class Renderer2DSynth(BaseRenderer):
             bg_color=config.COLOR_NET_BACKGROUND,
             scratch=scratch,
         )
-
-    def _draw_tile_contour_edges(
-        self,
-        heightfield: NDArray[np.float32],
-        lut: NDArray[np.uint8],
-        state: StudioState,
-    ) -> None:
-        """Stamps 1px tile-boundary isoline outlines onto target surface."""
-        self.rendered_surface.fill(config.COLOR_NET_BACKGROUND)
-        edges = bake_tile_contour_edges(
-            heightfield=heightfield,
-            lut=lut,
-            intervals=state.net_intervals,
-        )
-        tile_sz = state.tile_size
-
-        v_cols_y = np.repeat(edges.v_colors, tile_sz, axis=0)[:self.height]
-        v_mask_y = np.repeat(edges.v_active, tile_sz, axis=0)[:self.height]
-        v_cols_xy = np.transpose(v_cols_y, (1, 0, 2))
-        v_mask_xy = np.transpose(v_mask_y, (1, 0))
-
-        h_cols_x = np.repeat(edges.h_colors, tile_sz, axis=1)[:, :self.width]
-        h_mask_x = np.repeat(edges.h_active, tile_sz, axis=1)[:, :self.width]
-        h_cols_xy = np.transpose(h_cols_x, (1, 0, 2))
-        h_mask_xy = np.transpose(h_mask_x, (1, 0))
-
-        surf_view = pygame.surfarray.pixels3d(self.rendered_surface)
-        try:
-            v_slots = surf_view[tile_sz::tile_sz].shape[0]
-            v_count = min(v_cols_xy.shape[0], v_slots)
-            if v_count > 0:
-                v_stop = tile_sz * (v_count + 1)
-                v_target = surf_view[tile_sz:v_stop:tile_sz]
-                v_src = v_cols_xy[:v_count]
-                v_where = v_mask_xy[:v_count, :, None]
-                np.copyto(v_target, v_src, where=v_where)
-
-            h_slots = surf_view[:, tile_sz::tile_sz].shape[1]
-            h_count = min(h_cols_xy.shape[1], h_slots)
-            if h_count > 0:
-                h_stop = tile_sz * (h_count + 1)
-                h_target = surf_view[:, tile_sz:h_stop:tile_sz]
-                h_src = h_cols_xy[:, :h_count]
-                h_where = h_mask_xy[:, :h_count, None]
-                np.copyto(h_target, h_src, where=h_where)
-        finally:
-            del surf_view
 
     def _draw_hud(self, state: StudioState, fps: float) -> None:
         """Renders stacked blueprint metadata and active channel cards."""
@@ -301,8 +261,9 @@ class Renderer2DSynth(BaseRenderer):
         box_w = sum(surf.get_width() for surf, _ in rendered) + (pad * 2)
         box_h = max(surf.get_height() for surf, _ in rendered) + (pad * 2)
 
-        bg_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-        bg_surf.fill(config.COLOR_HUD_CARD_2D)
+        bg_surf = self.get_translucent_card_surface(
+            box_w, box_h, config.COLOR_HUD_CARD_2D
+        )
         self.screen.blit(bg_surf, (x, y))
 
         pygame.draw.rect(

@@ -1,7 +1,7 @@
 """Interactive parameter matrix deck renderer for Modes 3 and 4."""
 
 import time
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 import pygame
 import config
 from studio.state import StudioState
@@ -16,6 +16,10 @@ _BASE_ROWS: Tuple[Tuple[int, str], ...] = (
     (config.ROW_SUBSAMPLE, "SUB-SAMPLE:"),
     (config.ROW_SEED, "SEED      :"),
 )
+
+_MATRIX_BG_CACHE: Dict[
+    Tuple[int, int, Tuple[int, int, int, int]], pygame.Surface
+] = {}
 
 
 def draw_parameter_matrix(
@@ -37,8 +41,7 @@ def draw_parameter_matrix(
     total_rows = config.MATRIX_ROW_COUNT if is_mode_world else 7
     box_h = pad + ((total_rows + 1) * line_h) + pad
 
-    bg_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-    bg_surf.fill(config.COLOR_HUD_CARD_2D)
+    bg_surf = _get_matrix_bg_surface(box_w, box_h, config.COLOR_HUD_CARD_2D)
     screen.blit(bg_surf, (x, y))
 
     pygame.draw.rect(
@@ -86,6 +89,26 @@ def draw_parameter_matrix(
             )
 
     return box_h
+
+
+def _get_matrix_bg_surface(
+    width: int,
+    height: int,
+    bg_rgba: Tuple[int, int, int, int],
+) -> pygame.Surface:
+    """Returns cached translucent surface for parameter matrix deck."""
+    key = (width, height, bg_rgba)
+    cached = _MATRIX_BG_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    if len(_MATRIX_BG_CACHE) >= 8:
+        _MATRIX_BG_CACHE.clear()
+
+    bg_surf = pygame.Surface((width, height), pygame.SRCALPHA)
+    bg_surf.fill(bg_rgba)
+    _MATRIX_BG_CACHE[key] = bg_surf
+    return bg_surf
 
 
 def _draw_header_row(

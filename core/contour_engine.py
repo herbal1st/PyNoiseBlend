@@ -131,6 +131,56 @@ def bake_tile_contour_edges(
     )
 
 
+def draw_tile_contour_edges_to_surface(
+    surface: pygame.Surface,
+    heightfield: NDArray[np.float32],
+    lut: NDArray[np.uint8],
+    intervals: float,
+    tile_size: int,
+    bg_color: Tuple[int, int, int],
+) -> None:
+    """Stamps 1px tile-boundary isoline contours onto target surface."""
+    surface.fill(bg_color)
+    edges = bake_tile_contour_edges(
+        heightfield=heightfield,
+        lut=lut,
+        intervals=intervals,
+    )
+    tgt_w, tgt_h = surface.get_size()
+
+    v_cols_y = np.repeat(edges.v_colors, tile_size, axis=0)[:tgt_h]
+    v_mask_y = np.repeat(edges.v_active, tile_size, axis=0)[:tgt_h]
+    v_cols_xy = np.transpose(v_cols_y, (1, 0, 2))
+    v_mask_xy = np.transpose(v_mask_y, (1, 0))
+
+    h_cols_x = np.repeat(edges.h_colors, tile_size, axis=1)[:, :tgt_w]
+    h_mask_x = np.repeat(edges.h_active, tile_size, axis=1)[:, :tgt_w]
+    h_cols_xy = np.transpose(h_cols_x, (1, 0, 2))
+    h_mask_xy = np.transpose(h_mask_x, (1, 0))
+
+    surf_view = pygame.surfarray.pixels3d(surface)
+    try:
+        v_slots = surf_view[tile_size::tile_size].shape[0]
+        v_count = min(v_cols_xy.shape[0], v_slots)
+        if v_count > 0:
+            v_stop = tile_size * (v_count + 1)
+            v_target = surf_view[tile_size:v_stop:tile_size]
+            v_src = v_cols_xy[:v_count]
+            v_where = v_mask_xy[:v_count, :, None]
+            np.copyto(v_target, v_src, where=v_where)
+
+        h_slots = surf_view[:, tile_size::tile_size].shape[1]
+        h_count = min(h_cols_xy.shape[1], h_slots)
+        if h_count > 0:
+            h_stop = tile_size * (h_count + 1)
+            h_target = surf_view[:, tile_size:h_stop:tile_size]
+            h_src = h_cols_xy[:, :h_count]
+            h_where = h_mask_xy[:, :h_count, None]
+            np.copyto(h_target, h_src, where=h_where)
+    finally:
+        del surf_view
+
+
 def draw_contour_net_to_surface(
     surface: pygame.Surface,
     heightfield_wh: NDArray[np.float32],

@@ -7,8 +7,8 @@ from numpy.typing import NDArray
 import pygame
 import config
 from core.contour_engine import (
-    bake_tile_contour_edges,
     draw_culled_contour_net_to_surface,
+    draw_tile_contour_edges_to_surface,
 )
 from studio.renderers.base_renderer import BaseRenderer
 from studio.state import StudioState
@@ -24,7 +24,7 @@ class BaseChunkRenderer(BaseRenderer):
         screen: pygame.Surface,
         chunk_manager: ChunkManager,
     ) -> None:
-        """Initializes chunk manager, preview surface, and scratch cache."""
+        """Initializes chunk manager, preview surface, and scratch."""
         super().__init__(screen)
         self.chunk_manager: ChunkManager = chunk_manager
         self._preview_surface: pygame.Surface = pygame.Surface(
@@ -38,7 +38,7 @@ class BaseChunkRenderer(BaseRenderer):
         self._preview_cam_y: float = 0.0
 
     def _invalidate_preview(self) -> None:
-        """Clears cached coarse preview and resets progressive refinement."""
+        """Clears cached coarse preview and resets progressive state."""
         self._has_preview = False
         self._is_refining = False
         self._chunks_stale_from_scrub = False
@@ -90,7 +90,7 @@ class BaseChunkRenderer(BaseRenderer):
         state: StudioState,
         provider: ChunkProvider,
     ) -> None:
-        """Renders single coarse viewport grid without chunk cache churn."""
+        """Renders single coarse viewport grid without chunk churn."""
         origin_x = state.cam_x - (float(self.width) / 2.0)
         origin_y = state.cam_y - (float(self.height) / 2.0)
         _, active_lut = state.active_palette
@@ -155,7 +155,7 @@ class BaseChunkRenderer(BaseRenderer):
         origin_x: float,
         origin_y: float,
     ) -> None:
-        """Samples world-snapped tile centroids for crisp coarse preview."""
+        """Samples world-snapped tile centroids for crisp preview."""
         tile_sz = state.tile_size
         snapped_ox = float(math.floor(origin_x / tile_sz) * tile_sz)
         snapped_oy = float(math.floor(origin_y / tile_sz) * tile_sz)
@@ -175,7 +175,14 @@ class BaseChunkRenderer(BaseRenderer):
         tile_surf = self._get_scratch_surface(full_w, full_h)
 
         if state.net_enabled:
-            self._stamp_tile_edges(tile_surf, field, lut, state, tile_sz)
+            draw_tile_contour_edges_to_surface(
+                surface=tile_surf,
+                heightfield=field,
+                lut=lut,
+                intervals=state.net_intervals,
+                tile_size=tile_sz,
+                bg_color=config.COLOR_NET_BACKGROUND,
+            )
         else:
             indices = np.clip(field * 1023.0, 0, 1023).astype(np.int32)
             rgb_buffer = lut[indices]
@@ -186,57 +193,8 @@ class BaseChunkRenderer(BaseRenderer):
 
         self._preview_surface.blit(tile_surf, (-shift_x, -shift_y))
 
-    def _stamp_tile_edges(
-        self,
-        target: pygame.Surface,
-        field: NDArray[np.float32],
-        lut: NDArray[np.uint8],
-        state: StudioState,
-        tile_sz: int,
-    ) -> None:
-        """Stamps 1px tile-boundary isoline contours onto tile surface."""
-        target.fill(config.COLOR_NET_BACKGROUND)
-        edges = bake_tile_contour_edges(
-            heightfield=field,
-            lut=lut,
-            intervals=state.net_intervals,
-        )
-        tgt_w, tgt_h = target.get_size()
-
-        v_cols_y = np.repeat(edges.v_colors, tile_sz, axis=0)[:tgt_h]
-        v_mask_y = np.repeat(edges.v_active, tile_sz, axis=0)[:tgt_h]
-        v_cols_xy = np.transpose(v_cols_y, (1, 0, 2))
-        v_mask_xy = np.transpose(v_mask_y, (1, 0))
-
-        h_cols_x = np.repeat(edges.h_colors, tile_sz, axis=1)[:, :tgt_w]
-        h_mask_x = np.repeat(edges.h_active, tile_sz, axis=1)[:, :tgt_w]
-        h_cols_xy = np.transpose(h_cols_x, (1, 0, 2))
-        h_mask_xy = np.transpose(h_mask_x, (1, 0))
-
-        surf_view = pygame.surfarray.pixels3d(target)
-        try:
-            v_slots = surf_view[tile_sz::tile_sz].shape[0]
-            v_count = min(v_cols_xy.shape[0], v_slots)
-            if v_count > 0:
-                v_stop = tile_sz * (v_count + 1)
-                v_target = surf_view[tile_sz:v_stop:tile_sz]
-                v_src = v_cols_xy[:v_count]
-                v_where = v_mask_xy[:v_count, :, None]
-                np.copyto(v_target, v_src, where=v_where)
-
-            h_slots = surf_view[:, tile_sz::tile_sz].shape[1]
-            h_count = min(h_cols_xy.shape[1], h_slots)
-            if h_count > 0:
-                h_stop = tile_sz * (h_count + 1)
-                h_target = surf_view[:, tile_sz:h_stop:tile_sz]
-                h_src = h_cols_xy[:, :h_count]
-                h_where = h_mask_xy[:, :h_count, None]
-                np.copyto(h_target, h_src, where=h_where)
-        finally:
-            del surf_view
-
     def _draw_refinement_frame(self, state: StudioState) -> None:
-        """Draws fallback preview underneath progressively refilled chunks."""
+        """Draws fallback preview underneath progressively filled chunks."""
         self.screen.fill(config.COLOR_BG)
         visible_ready = self.chunk_manager.are_visible_chunks_loaded(
             state.cam_x, state.cam_y, float(self.width), float(self.height)
@@ -253,7 +211,7 @@ class BaseChunkRenderer(BaseRenderer):
         width: int,
         height: int,
     ) -> pygame.Surface:
-        """Returns cached offscreen surface matching requested dimensions."""
+        """Returns cached offscreen surface matching dimensions."""
         key = (width, height)
         surface = self._scratch_surfaces.get(key)
         if surface is None:

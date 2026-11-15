@@ -50,18 +50,28 @@ class StrataLoader:
         name: str,
         profile_data: Dict[str, Any],
     ) -> StrataProfile:
-        """Validates keyframes and constructs immutable StrataProfile model."""
+        """Validates keyframes and constructs immutable StrataProfile."""
         raw_keyframes = profile_data.get("keyframes", [])
         if not raw_keyframes:
             fail_fast(f"Strata profile '{name}' has no defined keyframes.")
 
         keyframes = cls._normalize_keyframes(name, raw_keyframes)
-        color_lut, speed_lut = cls._bake_luts(keyframes)
+        return cls._create_profile(name, keyframes)
 
+    @classmethod
+    def _create_profile(
+        cls,
+        name: str,
+        keyframes: List[StrataKeyframe],
+    ) -> StrataProfile:
+        """Bakes normal, inverted, and speed LUTs into a StrataProfile."""
+        color_lut, speed_lut = cls._bake_luts(keyframes)
+        inverted_lut = np.ascontiguousarray(color_lut[::-1])
         return StrataProfile(
             profile_name=name,
             keyframes=tuple(keyframes),
             color_lut=color_lut,
+            inverted_lut=inverted_lut,
             speed_lut=speed_lut,
         )
 
@@ -100,7 +110,8 @@ class StrataLoader:
 
             if len(rgb_raw) != 3:
                 fail_fast(
-                    f"Profile '{name}' keyframe #{idx} RGB must have 3 items."
+                    f"Profile '{name}' keyframe #{idx} RGB must have "
+                    f"3 items."
                 )
 
             r = int(np.clip(rgb_raw[0], 0, 255))
@@ -161,8 +172,8 @@ class StrataLoader:
         g_lut = np.clip(np.round(g_interp), 0, 255).astype(np.uint8)
         b_lut = np.clip(np.round(b_interp), 0, 255).astype(np.uint8)
 
-        color_lut: NDArray[np.uint8] = np.stack([r_lut, g_lut, b_lut], axis=-1)
-        speed_lut: NDArray[np.float32] = speed_interp.astype(np.float32)
+        color_lut = np.stack([r_lut, g_lut, b_lut], axis=-1)
+        speed_lut = speed_interp.astype(np.float32)
 
         return np.ascontiguousarray(color_lut), np.ascontiguousarray(speed_lut)
 
@@ -171,15 +182,12 @@ class StrataLoader:
         """Pre-bakes diagnostic heatmaps as baseline StrataProfiles."""
         heatmaps: Dict[str, StrataProfile] = {}
 
-        # 1. Linear Greyscale
         grey_kfs = [
             StrataKeyframe(0.0, 1.0, (0, 0, 0)),
             StrataKeyframe(1.0, 1.0, (255, 255, 255)),
         ]
-        c_lut, s_lut = cls._bake_luts(grey_kfs)
-        heatmaps["GREYSCALE"] = StrataProfile("GREYSCALE", tuple(grey_kfs), c_lut, s_lut)
+        heatmaps["GREYSCALE"] = cls._create_profile("GREYSCALE", grey_kfs)
 
-        # 2. Magma
         magma_kfs = [
             StrataKeyframe(0.00, 1.0, (0, 0, 4)),
             StrataKeyframe(0.20, 1.0, (40, 11, 84)),
@@ -189,10 +197,8 @@ class StrataLoader:
             StrataKeyframe(0.95, 1.0, (254, 216, 154)),
             StrataKeyframe(1.00, 1.0, (252, 253, 191)),
         ]
-        c_lut, s_lut = cls._bake_luts(magma_kfs)
-        heatmaps["MAGMA"] = StrataProfile("MAGMA", tuple(magma_kfs), c_lut, s_lut)
+        heatmaps["MAGMA"] = cls._create_profile("MAGMA", magma_kfs)
 
-        # 3. Turbo
         turbo_kfs = [
             StrataKeyframe(0.00, 1.0, (48, 18, 59)),
             StrataKeyframe(0.15, 1.0, (70, 134, 251)),
@@ -202,10 +208,8 @@ class StrataLoader:
             StrataKeyframe(0.90, 1.0, (227, 73, 24)),
             StrataKeyframe(1.00, 1.0, (122, 4, 3)),
         ]
-        c_lut, s_lut = cls._bake_luts(turbo_kfs)
-        heatmaps["TURBO"] = StrataProfile("TURBO", tuple(turbo_kfs), c_lut, s_lut)
+        heatmaps["TURBO"] = cls._create_profile("TURBO", turbo_kfs)
 
-        # 4. Viridis
         viridis_kfs = [
             StrataKeyframe(0.00, 1.0, (68, 1, 84)),
             StrataKeyframe(0.25, 1.0, (59, 82, 139)),
@@ -213,7 +217,6 @@ class StrataLoader:
             StrataKeyframe(0.75, 1.0, (94, 201, 98)),
             StrataKeyframe(1.00, 1.0, (253, 231, 37)),
         ]
-        c_lut, s_lut = cls._bake_luts(viridis_kfs)
-        heatmaps["VIRIDIS"] = StrataProfile("VIRIDIS", tuple(viridis_kfs), c_lut, s_lut)
+        heatmaps["VIRIDIS"] = cls._create_profile("VIRIDIS", viridis_kfs)
 
         return heatmaps

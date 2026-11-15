@@ -26,7 +26,7 @@ class Renderer1D(BaseRenderer):
         state: StudioState,
         frame: WaveFrame1D,
     ) -> None:
-        """Rebuilds all four oscilloscope panels onto the cached surface."""
+        """Rebuilds all four oscilloscope panels onto cached surface."""
         self.cached_surface.fill(config.BACKGROUND_COLOR)
         formula = state.formula
         pal_name, active_lut = state.active_palette
@@ -140,7 +140,7 @@ class Renderer1D(BaseRenderer):
         )
 
     def render(self) -> None:
-        """Blits the cached 1D frame and overlays unified studio footer."""
+        """Blits the cached 1D frame and overlays unified footer."""
         self.screen.blit(self.cached_surface, (0, 0))
         self.draw_studio_footer(active_mode=1)
 
@@ -156,7 +156,7 @@ class Renderer1D(BaseRenderer):
         fill_lut: Optional[NDArray[np.uint8]] = None,
         line_lut: Optional[NDArray[np.uint8]] = None,
     ) -> None:
-        """Renders an oscilloscope panel with fill or multi-colored line."""
+        """Renders an oscilloscope panel with fill or colored line."""
         panel_h = self.height // config.PANEL_COUNT
         y_top = panel_index * panel_h
         y_bottom = y_top + panel_h
@@ -190,7 +190,6 @@ class Renderer1D(BaseRenderer):
                 1,
             )
 
-        pixel_x = np.arange(self.width, dtype=np.int32)
         pixel_y = np.round(y_draw_min - (wave_data * draw_h)).astype(np.int32)
 
         if fill_lut is not None and int_draw_h > 0:
@@ -202,18 +201,16 @@ class Renderer1D(BaseRenderer):
             )
 
         if line_lut is not None and not is_silenced:
-            indices = np.clip(wave_data * 1023.0, 0, 1023).astype(np.int32)
-            rgb_cols = line_lut[indices]
-            for x in range(self.width - 1):
-                col = (
-                    int(rgb_cols[x, 0]),
-                    int(rgb_cols[x, 1]),
-                    int(rgb_cols[x, 2]),
-                )
-                p0 = (int(pixel_x[x]), int(pixel_y[x]))
-                p1 = (int(pixel_x[x + 1]), int(pixel_y[x + 1]))
-                pygame.draw.line(self.cached_surface, col, p0, p1, line_width)
+            self._render_vectorized_line(
+                wave_data=wave_data,
+                pixel_y=pixel_y,
+                line_lut=line_lut,
+                y_draw_max=y_draw_max,
+                y_draw_min=y_draw_min,
+                line_width=line_width,
+            )
         else:
+            pixel_x = np.arange(self.width, dtype=np.int32)
             wave_color = (
                 config.COLOR_SILENCED_WAVE
                 if is_silenced
@@ -260,6 +257,48 @@ class Renderer1D(BaseRenderer):
             (tx + config.PANEL_TITLE_TEXT_X, ty + config.PANEL_TITLE_TEXT_Y),
         )
 
+    def _render_vectorized_line(
+        self,
+        wave_data: NDArray[np.float32],
+        pixel_y: NDArray[np.int32],
+        line_lut: NDArray[np.uint8],
+        y_draw_max: int,
+        y_draw_min: int,
+        line_width: int,
+    ) -> None:
+        """Paints a multi-colored 1D curve directly via surfarray."""
+        half_w = max(0, line_width // 2)
+        y_top_bound = max(0, y_draw_max - half_w)
+        y_bot_bound = min(self.height - 1, y_draw_min + half_w)
+        band_h = (y_bot_bound - y_top_bound) + 1
+        if band_h <= 0:
+            return
+
+        y_next = np.empty_like(pixel_y)
+        y_next[:-1] = pixel_y[1:]
+        y_next[-1] = pixel_y[-1]
+
+        y_lo = np.maximum(y_top_bound, np.minimum(pixel_y, y_next) - half_w)
+        y_hi = np.minimum(y_bot_bound, np.maximum(pixel_y, y_next) + half_w)
+
+        y_rows = np.arange(
+            y_top_bound, y_bot_bound + 1, dtype=np.int32
+        )[None, :]
+        mask = (y_rows >= y_lo[:, None]) & (y_rows <= y_hi[:, None])
+
+        indices = np.clip(wave_data * 1023.0, 0, 1023).astype(np.int32)
+        rgb_cols = line_lut[indices]
+        cols_bcast = np.broadcast_to(
+            rgb_cols[:, None, :], (self.width, band_h, 3)
+        )
+
+        surf_view = pygame.surfarray.pixels3d(self.cached_surface)
+        try:
+            band_view = surf_view[:, y_top_bound : y_bot_bound + 1]
+            np.copyto(band_view, cols_bcast, where=mask[:, :, None])
+        finally:
+            del surf_view
+
     def _render_vectorized_fill(
         self,
         wave_data: NDArray[np.float32],
@@ -267,7 +306,7 @@ class Renderer1D(BaseRenderer):
         y_draw_max: int,
         int_draw_h: int,
     ) -> None:
-        """Blits columnar hypsometric fills via vectorized NumPy buffer."""
+        """Blits columnar hypsometric fills via vectorized buffer."""
         lut_idx = np.clip(wave_data * 1023.0, 0, 1023).astype(np.int32)
         cols_rgb = fill_lut[lut_idx]
 

@@ -368,9 +368,10 @@ StrataLoader bakes four scientific heatmaps before loading YAML biomes:
 - VIRIDIS   : Perceptually uniform blue-to-yellow scientific palette.
 
 Dynamic Color Inversion (Key [I]):
-Every palette—built-in heatmaps and YAML biomes alike—can be flipped along
-its elevation axis in real time, turning Greyscale into a negative view or
-reversing ocean/mountain color polarity instantaneously.
+Every palette—built-in heatmaps and YAML biomes alike—pre-bakes both its
+normal color_lut and its reversed inverted_lut once at load time. Pressing
+[I] swaps the active table instantaneously with zero runtime re-baking,
+turning Greyscale into a negative view or flipping ocean/mountain polarity.
 
 
 [6.0 THE UNIFIED TERRAIN STUDIO & INSPECTION SUITE]
@@ -392,13 +393,14 @@ The Modular Studio Architecture (studio/):
 
 Shared Base & Chunk Renderers (studio/renderers/):
 - BaseRenderer (base_renderer.py): Provides shared monospace typography,
-  auto-sizing HUD cards, and the unified two-line studio footer dock.
+  auto-sizing HUD cards backed by a bounded translucent surface cache (avoiding
+  per-frame alpha surface allocations), and the unified two-line studio dock.
 - BaseChunkRenderer (base_chunk_renderer.py): Extends BaseRenderer for Modes 3
   and 4, strictly managing coarse live previews, culled 1px isoline previews,
   world-locked tile previews, and progressive center-outward chunk refinement.
 - Parameter Matrix Deck (parameter_matrix.py): Standalone UI renderer drawing
-  the interactive multi-column parameter spreadsheet and registering cell and
-  tab click hitboxes for Modes 3 and 4.
+  the interactive multi-column parameter spreadsheet (also using a cached
+  translucent backdrop) and registering cell and tab click hitboxes.
 
 The 4 Studio Viewports (studio/renderers/):
 
@@ -414,8 +416,8 @@ The 4 Studio Viewports (studio/renderers/):
      UP/DOWN) to focus it; clicks on silenced Panel 2 are ignored. Selecting
      Panel 4 ([ALL ACTIVE]) scales or resets all active layers together.
    - Dual Hypsometric Fill / Vector Trace: Standard mode fills under Panel 4's
-     curve with vertical LUT color ribbons; Net mode draws a colored vector
-     curve.
+     curve with vertical LUT color ribbons; Net mode paints a multi-colored
+     curve in one vectorized NumPy surfarray pass with zero Python line loops.
 
 2. Mode 2: 2D Spatial Synthesizer (renderer_2d_synth.py):
    - Projects the three mathematical wave roles onto a 16:9 2D canvas:
@@ -503,9 +505,10 @@ The Multi-Kernel Evaluation Engine (core/contour_engine.py):
   without gaps along chunk borders. Toggling Net or changing palettes while
   tile stepping is active triggers a fast halo-aware chunk refresh so boundary
   contour lines remain unbroken across all tile sizes (8px, 16px, 32px).
-- Tiled Edge Preview Kernel (bake_tile_contour_edges): Computes directional
-  vertical and horizontal tile-crossing edges directly from compact grids for
-  instant Mode 2 and Mode 3/4 scrubbing previews.
+- Tiled Edge Preview Kernel (draw_tile_contour_edges_to_surface): Computes
+  directional vertical and horizontal tile-crossing edges directly from compact
+  grids via bake_tile_contour_edges and stamps them through one shared helper
+  for instant Mode 2 and Mode 3/4 scrubbing previews.
 
 
 [9.0 FORMULA CATALOG & 2D PRESETS]

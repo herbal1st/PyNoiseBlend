@@ -22,16 +22,16 @@ class ValueNoise:
         x_grid: NDArray[np.float32],
         y_grid: NDArray[np.float32],
     ) -> NDArray[np.float32]:
-        """
-        Evaluates 2D Value Noise across coordinate arrays in [-1.0, 1.0].
-        """
-        x0 = np.floor(x_grid).astype(np.int32)
-        y0 = np.floor(y_grid).astype(np.int32)
+        """Evaluates 2D Value Noise across coordinate arrays in [-1, 1]."""
+        floor_x = np.floor(x_grid)
+        floor_y = np.floor(y_grid)
+        x0 = floor_x.astype(np.int32)
+        y0 = floor_y.astype(np.int32)
         x1 = x0 + 1
         y1 = y0 + 1
 
-        xf = x_grid - np.floor(x_grid)
-        yf = y_grid - np.floor(y_grid)
+        xf = x_grid - floor_x
+        yf = y_grid - floor_y
 
         u_fade = xf * xf * xf * (xf * (xf * 6.0 - 15.0) + 10.0)
         v_fade = yf * yf * yf * (yf * (yf * 6.0 - 15.0) + 10.0)
