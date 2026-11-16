@@ -7,7 +7,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 1
 
   MICRO_PERLIN:
     noise_type: "PERLIN"
@@ -16,7 +16,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 1
 
   MICRO_VALUE:
     noise_type: "VALUE"
@@ -25,7 +25,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 1
 
   MID_SIMPLEX:
     noise_type: "SIMPLEX"
@@ -34,7 +34,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 4
 
   MID_PERLIN:
     noise_type: "PERLIN"
@@ -43,7 +43,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 4
 
   MID_VALUE:
     noise_type: "VALUE"
@@ -52,7 +52,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 4
 
   MACRO_SIMPLEX:
     noise_type: "SIMPLEX"
@@ -61,7 +61,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 8
 
   MACRO_PERLIN:
     noise_type: "PERLIN"
@@ -70,7 +70,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 8
 
   MACRO_VALUE:
     noise_type: "VALUE"
@@ -79,7 +79,7 @@ profiles:
     octaves: 1
     decay: 0.50
     lacunarity: 2.0
-    sub_sample_factor: 2
+    sub_sample_factor: 8
 
 
 # ============================================================================

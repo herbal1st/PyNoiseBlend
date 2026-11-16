@@ -105,6 +105,23 @@ Key Architectural Pillars:
   to the center of your screen.
 - Frame-Rate Independent Delta Time: Camera flight speed, debounce timers, and
   zoom rates scale by frame delta time (dt) for consistent feel across PCs.
+- Deferred Slope Gradients: In Mode 4, WorldChunkProvider skips slope-tilt
+  math (np.gradient) and its extra 1-pixel border ring unless lighting or
+  tiled contour lines actually need them—reclaiming ~25–30% chunk bake speed.
+- Dynamic Resolution Fallback Latch: TerrainStudioApp monitors frame rates
+  in Modes 3, 4, and 5; if FPS stays below a safety threshold for a short
+  grace period, the engine automatically switches chunk generation to a
+  coarser sub-sampled grid (without ever upscaling already-coarse profiles),
+  steps Mode 5's lightmap down to a coarser fallback divider, and flags
+  [FALLBACK: Nx] in the HUD.
+- Single-Pass 3D Solar Hillshading (world/lighting/): Mode 5 computes 3D
+  sunlight direction (compass azimuth + sun altitude), adjustable neutral
+  exposure (letting sunlit ridges brighten above flat plains without clipping),
+  and time-of-day sky tinting on a screen-relative lightmap grid sampled
+  directly from visible chunks via np.searchsorted, then scales and
+  multiplies it over the screen in one pygame.BLEND_MULT pass—allowing 60 FPS
+  sun orbits, live scrubbing hillshading, and crisp 1:1 tile-aligned shading
+  in Tile Mode with zero chunk re-baking.
 
 
 [2.0 PROCEDURAL GENERATION & MATHEMATICAL WAVE SYNTHESIS]
@@ -222,11 +239,14 @@ A chunk is a localized square tile of the continuous elevation surface:
 - Holds the float32 elevation grid h, slope gradients (gx, gy), and the baked
   SDL image surface ready for instant screen stamping.
 
-1-Pixel Halo for Seamless Slopes:
+1-Pixel Halo & Deferred Slope Calculation:
 To measure slope steepness accurately at a chunk's edge, pixels need to peek
-one pixel across the boundary. When generating a chunk, the provider samples a
-1-pixel padded border ring around the chunk, calculates slopes across the
+one pixel across the boundary. When slope gradients (ENABLE_SLOPE_GRADIENTS)
+or tiled contour lines are active, the provider samples a 1-pixel padded
+border ring around the chunk, calculates slopes or edge crossings across the
 padded grid, and trims the halo away—preventing lighting or contour seams.
+When flat Mode 4 exploration has gradients deferred, this extra halo and
+gradient math are skipped completely for faster chunk baking.
 
 Anchor-Locked Grid Projection:
 Floating-point camera positions can cause neighboring chunks to round to
@@ -285,14 +305,18 @@ The Low-Spec Hardware Dilemma:
 Evaluating multi-octave Simplex noise for all 1,742,400 pixels of a 1760x990
 display on a low-power CPU would drop real-time interactivity to a crawl.
 
-The Sub-Sampling Solution (WorldChunkProvider):
-Controlled by sub_sample_factor in profiles/world.yaml or dynamically via the
-parameter matrix (1x, 2x, 4x, 8x):
+The Per-Layer Sub-Sampling Solution (WorldChunkProvider):
+Controlled per noise layer (1x, 2x, 4x, 8x via profiles/noise.yaml or live in
+the Mode 3/4 matrix), with WorldProfile.sub_sample_factor and the Fallback
+Latch acting as a minimum floor so dividers never multiply together:
 - At 1x (Native): Evaluates all 16,384 points per 128x128 chunk.
 - At 2x Downsampled: Evaluates 64x64 points (4,096 samples), cutting noise math
   by 75%.
 - At 4x or 8x: Cuts math by 93%–98% before smoothly upscaling back to native
   chunk resolution.
+- Smart Layer Transport: Fine local detail (Base) can run at 1x or 2x while
+  broad macro layers (Relief at 4x, Crust at 8x) evaluate far fewer points and
+  align cleanly onto the Base grid before the formula combines them.
 
 The (N + 1) Fencepost Rule:
 Dividing a span into N intervals requires N + 1 boundary points (just like a
@@ -330,11 +354,23 @@ static quality:
   keep the preview underneath as a camera-synced backdrop, and refill chunks
   from the center outward at CHUNK_REFINE_BUDGET_PER_FRAME per frame.
 
-Dynamic Resolution Fallback Latch:
-config.py defines FPS safety-latch constants (ENABLE_AUTO_RESOLUTION_FALLBACK,
-RESOLUTION_FALLBACK_DIVIDER, FPS threshold, and trigger duration), and
-ChunkManager / WorldChunkProvider expose sub_sample_override hooks ready to
-connect runtime FPS throttling when needed.
+Dynamic Resolution Fallback Latch (Wired Safety Net):
+To keep Modes 3, 4, and 5 responsive on low-power CPUs, TerrainStudioApp.run()
+checks live frame rates every tick via StudioState.check_resolution_fallback().
+If FPS stays below RESOLUTION_FALLBACK_FPS_THRESHOLD for
+RESOLUTION_FALLBACK_TRIGGER_SECONDS, the latch engages and routes
+RESOLUTION_FALLBACK_DIVIDER into ChunkManager.update_focus() via
+sub_sample_override, while Mode 5's lightmap steps down to
+LIGHTMAP_FALLBACK_DIVIDER. Both WorldChunkProvider and NoiseGenerator clamp
+with max(configured_factor, override) so already-coarse profiles never
+accidentally upscale. When active, the HUD appends a [FALLBACK: Nx] tag next
+to the FPS readout.
+
+Optional Slope Gradient Deferral (ENABLE_SLOPE_GRADIENTS):
+Mode 4 skips calculating slope-tilt arrays (gx, gy) and two extra
+bilinear_resample_2d() calls per chunk when ENABLE_SLOPE_GRADIENTS is False,
+reclaiming ~25–30% chunk bake speed during flat exploration. Mode 5 enables
+gradients on its own ChunkManager so hillshading stays independent.
 
 
 [5.0 CONTINUOUS STRATA PALETTES & 1D TRANSFER LUTS]
@@ -376,7 +412,7 @@ turning Greyscale into a negative view or flipping ocean/mountain polarity.
 
 [6.0 THE UNIFIED TERRAIN STUDIO & INSPECTION SUITE]
 -------------------------------------------------------------------------------
-PyNoiseBlend includes a four-mode interactive workbench under studio/:
+PyNoiseBlend includes a five-mode interactive workbench under studio/:
 
 The Modular Studio Architecture (studio/):
 - Session State Store (state.py): Coordinates shared formulas, palettes,
@@ -395,14 +431,15 @@ Shared Base & Chunk Renderers (studio/renderers/):
 - BaseRenderer (base_renderer.py): Provides shared monospace typography,
   auto-sizing HUD cards backed by a bounded translucent surface cache (avoiding
   per-frame alpha surface allocations), and the unified two-line studio dock.
-- BaseChunkRenderer (base_chunk_renderer.py): Extends BaseRenderer for Modes 3
-  and 4, strictly managing coarse live previews, culled 1px isoline previews,
-  world-locked tile previews, and progressive center-outward chunk refinement.
+- BaseChunkRenderer (base_chunk_renderer.py): Extends BaseRenderer for Modes
+  3, 4, and 5, managing coarse live previews, culled 1px isoline previews,
+  world-locked tile previews, progressive center-outward chunk refinement, and
+  cached scrub heightfields for live Mode 5 preview lighting.
 - Parameter Matrix Deck (parameter_matrix.py): Standalone UI renderer drawing
   the interactive multi-column parameter spreadsheet (also using a cached
   translucent backdrop) and registering cell and tab click hitboxes.
 
-The 4 Studio Viewports (studio/renderers/):
+The 5 Studio Viewports (studio/renderers/):
 
 1. Mode 1: 1D Wave Oscilloscope (renderer_1d.py):
    - Four vertically stacked signal plots: Base Detail D(x), Relief Multiplier
@@ -460,12 +497,32 @@ The 4 Studio Viewports (studio/renderers/):
    - Click any SEED cell or the WORLD SEED cell (or press ENTER on it) to type
      a new seed directly.
 
+5. Mode 5: Solar Lighting Studio (renderer_lighting.py):
+   - Inherits your live Mode 4 world (MODE 4 (LIVE)) by default—or lets you
+     compare the baseline world.yaml builds (SIMPLEX, PERLIN, PERFORMANT)—
+     using its own gradient-enabled ChunkManager (compute_gradients=True) so
+     Mode 4 continues to skip slope math when not in lighting view.
+   - Evaluates hillshading on a crisp screen-relative lightmap divider
+     (lightmap_sub_sample, dropping to LIGHTMAP_FALLBACK_DIVIDER only when
+     the fallback latch engages). In Tile Mode ([SPACE]), switches to exact
+     1:1 tile-centroid lighting with nearest-neighbor scaling so every tile is
+     cleanly flat-shaded with zero stripes.
+   - During interactive Scale scrubbing, computes gradients directly from the
+     compact scrub preview heightfield and holds the cached lightmap while
+     chunks refine, preventing unlit holes.
+   - Solar Control Deck: Click, drag, or use arrow keys to tune Preset, World
+     source, Sun Azimuth (0-360 deg), Sun Altitude (0-90 deg), Hillshade
+     Contrast, Ambient Ratio, Orbit Speed (PAUSED to 4.0x), Time-of-Day,
+     Exposure (neutral flat-ground brightness baseline), and unified Scale
+     (scales all layers proportionally around camera center without leaving
+     your selected world preset).
+
 
 [7.0 GLOBAL TILE STEPPING & COARSE CENTROID EVALUATION]
 -------------------------------------------------------------------------------
 Pressing [SPACE] and [SHIFT + SPACE] cycles terrain through a power-of-two tile
-quantization ring across all four modes:
-    OFF (Smooth) -> 8px -> 16px -> 32px -> OFF
+quantization ring across all five modes:
+    OFF (Smooth) -> 4px -> 8px -> 16px -> OFF
 
 Coarse Centroid Grid Evaluation (Up to 98% Less Math):
 Instead of evaluating every pixel and rounding afterward, tile mode evaluates
@@ -487,10 +544,10 @@ seams locked cleanly to world coordinates during panning with zero jitter.
 
 [8.0 SHARED TOPOGRAPHICAL RELIEF NET (ISOLINE ENGINE)]
 -------------------------------------------------------------------------------
-Pressing [N] toggles Topographical Relief Net mode across Modes 1, 2, 3, and 4:
+Pressing [N] toggles Topographical Relief Net mode across Modes 1 through 5:
 - In 1D: Replaces solid vertical color fills with a multi-colored trace curve.
-- In 2D, 3, and 4: Switches raster terrain to a dark slate blueprint contour
-  map drawn with elevation isoline bands (like a topographical hiking map).
+- In 2D, 3, 4, and 5: Switches raster terrain to a dark slate blueprint
+  contour map drawn with elevation isoline bands (like a hiking map).
 
 The Multi-Kernel Evaluation Engine (core/contour_engine.py):
 - Single-Pass Band Kernel (Settled Smooth Mode): Measures distance to the
@@ -551,23 +608,25 @@ together; holding [SHIFT] isolates ONLY the currently focused layer.
 
 VIEWPORT & GENERAL NAVIGATION:
 -------------------------------------------------------------------------------
-    1 - 4               : Switch Viewport Mode:
+    1 - 5               : Switch Viewport Mode:
                             [1] 1D Wave Oscilloscope
                             [2] 2D Spatial Synthesizer
                             [3] Raw Noise Inspector
                             [4] Endless World Explorer
+                            [5] Solar Lighting Studio
 
     TAB / SHIFT + TAB   : Cycle active mathematical formula forward / backward
                           (Modes 1, 2, and 4; automatically dims silenced
                           layers in Mode 4 matrix).
 
-    B / SHIFT + B       : Cycle active YAML Build / Noise Profile forward /
-                          backward (Modes 3 and 4).
+    B / SHIFT + B       : Cycle active YAML Build / Noise Profile (Modes 3
+                          and 4) or Solar Lighting Preset (Mode 5).
 
-    WASD                : Pan camera smoothly across terrain (Modes 3 and 4).
+    WASD                : Pan camera smoothly across terrain (Modes 3, 4,
+                          and 5).
 
     UP / DOWN           : Cycle active wave panel/channel focus (Modes 1 & 2)
-                          or move parameter matrix row selection (Modes 3 & 4).
+                          or move parameter/solar deck row (Modes 3, 4, & 5).
 
     SPACE / SHIFT+SPACE : Step tile size coarser / finer (OFF -> 8 -> 16 -> 32).
 
@@ -578,7 +637,7 @@ VIEWPORT & GENERAL NAVIGATION:
     N                   : Toggle Topographical Relief Net / 1D Vector trace.
 
     R                   : Reset ALL parameters, wave cycles, noise profiles,
-                          and camera coordinates back to baseline defaults.
+                          lighting settings, and camera coordinates to defaults.
     SHIFT + R           : Reset ONLY the focused layer back to defaults.
 
     ESCAPE / CLOSE      : Clean application shutdown (or cancels seed typing).
@@ -628,6 +687,30 @@ MATRIX DECK CONTROLS (MODES 3 & 4):
                           layer independently.
 
 
+SOLAR CONTROL DECK CONTROLS (MODE 5):
+-------------------------------------------------------------------------------
+    UP / DOWN           : Move row focus across Preset, World, Azimuth,
+                          Altitude, Contrast, Ambient, Orbit Spd, Time/Day,
+                          Exposure, and Scale.
+
+    LEFT MOUSE CLICK    : - On Discrete Rows (Preset, World, Orbit Spd):
+                            Steps forward (+1).
+                          - On Continuous Rows (Azimuth, Altitude, Contrast,
+                            Ambient, Time/Day, Exposure, Scale): Focuses row
+                            for dragging.
+
+    RIGHT MOUSE CLICK   : On Discrete Rows: Steps backward (-1).
+    (or SHIFT + LMB)
+
+    RIGHT DRAG /        : Smoothly scrubs Azimuth, Altitude, Contrast,
+    HOLD LEFT / RIGHT     Ambient Ratio, Time-of-Day, Exposure, or unified
+                          world Scale.
+
+    TAP LEFT / RIGHT    : Steps discrete rows (Preset, World, Orbit Spd) by 1.
+
+    LEFT DRAG           : Pan camera across lit terrain at 60 FPS.
+
+
 [11.0 PYBIWIS 2.0 (OBJECT OCCUPANCY & OBSTACLE ROADMAP)]
 -------------------------------------------------------------------------------
 Repurposing 64-Bit Bitmasks:
@@ -655,6 +738,7 @@ pynoiseblend/
 │
 ├── profiles/                     # Data-Driven Recipe Library
 │   ├── chunk.yaml                # Spatial chunk presets (PERFORMANT, BALANCED)
+│   ├── lighting.yaml             # Solar lighting & day/night presets
 │   ├── noise.yaml                # Raw noise presets (Simplex, Perlin, Value)
 │   ├── strata.yaml               # Biome color ramps & terrain speed modifiers
 │   └── world.yaml                # Noise-engine builds (seed, sub-sample, layers)
@@ -676,6 +760,14 @@ pynoiseblend/
 │   │       ├── world_chunk_provider.py # Formula world factory & halos
 │   │       └── noise_chunk_provider.py # Raw noise factory & tile stepping
 │   │
+│   ├── lighting/                 # Solar Lighting & Hillshading Subsystem
+│   │   ├── ambient_palette.py    # Time-of-day RGB ambient keyframe resolver
+│   │   ├── atmosphere_overlay.py # Single-pass lightmap BLEND_MULT manager
+│   │   ├── height_shadow_engine.py # 3D solar dot-product & lightmap kernel
+│   │   ├── lighting_profile.py   # LightingProfile data model & YAML loader
+│   │   ├── time_clock.py         # Normalized orbit clock & pause controller
+│   │   └── viewport_height_sampler.py # Direct chunk gradient strider
+│   │
 │   └── strata/                   # Continuous Strata Color Subsystem
 │       ├── strata_keyframe.py    # StrataKeyframe data model
 │       ├── strata_profile.py     # StrataProfile container & pre-baked LUTs
@@ -693,6 +785,7 @@ pynoiseblend/
 │       ├── parameter_matrix.py   # Interactive parameter matrix deck UI widget
 │       ├── renderer_1d.py        # Mode 1: 1D Wave Oscilloscope
 │       ├── renderer_2d_synth.py  # Mode 2: 2D Spatial Synthesizer & Net
+│       ├── renderer_lighting.py  # Mode 5: Solar Lighting & Hillshading Studio
 │       ├── renderer_noise.py     # Mode 3: Raw Noise Explorer
 │       └── renderer_world.py     # Mode 4: Procedural World Explorer
 │

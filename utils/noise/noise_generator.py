@@ -138,6 +138,7 @@ class NoiseGenerator:
         tile_size: int = 0,
         sub_sample_override: Optional[int] = None,
         upscale: bool = True,
+        bypass_profile_sub: bool = False,
     ) -> NDArray[np.float32]:
         """Samples continuous or coarse float32 noise field in [0.0, 1.0]."""
         if tile_size > 1:
@@ -150,12 +151,17 @@ class NoiseGenerator:
                 upscale=upscale,
             )
 
-        raw_sub = (
-            sub_sample_override
-            if sub_sample_override is not None
-            else self.profile.sub_sample_factor
-        )
-        sub_factor = max(1, raw_sub)
+        if bypass_profile_sub:
+            sub_factor = 1
+        else:
+            base_sub = self.profile.sub_sample_factor
+            raw_sub = (
+                max(base_sub, sub_sample_override)
+                if sub_sample_override is not None
+                else base_sub
+            )
+            sub_factor = max(1, raw_sub)
+
         return self._sample_smooth_grid(
             origin_x=origin_x,
             origin_y=origin_y,

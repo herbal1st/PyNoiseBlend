@@ -16,6 +16,7 @@ from core.wave_synthesizer import (
 from studio.input_handler import InputHandler
 from studio.renderers.renderer_1d import Renderer1D
 from studio.renderers.renderer_2d_synth import Renderer2DSynth
+from studio.renderers.renderer_lighting import RendererLighting
 from studio.renderers.renderer_noise import RendererNoise
 from studio.renderers.renderer_world import RendererWorld
 from studio.state import StudioState
@@ -25,7 +26,7 @@ install_crash_handler()
 
 
 class TerrainStudioApp:
-    """Coordinates window lifecycle, 4 viewports, and dirty re-bakes."""
+    """Coordinates window lifecycle, 5 viewports, and dirty re-bakes."""
 
     def __init__(self) -> None:
         """Initializes Pygame, state, coordinate meshes, and renderers."""
@@ -70,6 +71,9 @@ class TerrainStudioApp:
         self.renderer_world: RendererWorld = RendererWorld(
             self.screen, self.state
         )
+        self.renderer_lighting: RendererLighting = RendererLighting(
+            self.screen, self.state
+        )
 
     def run(self) -> None:
         """Executes main event polling, wave math, and frame drawing."""
@@ -84,6 +88,11 @@ class TerrainStudioApp:
                     break
 
                 self.state.tick_timers(dt)
+                self.state.check_resolution_fallback(
+                    self.clock.get_fps(), dt
+                )
+                if self.state.active_mode == 5:
+                    self.renderer_lighting.update(self.state, dt)
                 self._render_active_mode()
                 pygame.display.flip()
         finally:
@@ -144,6 +153,9 @@ class TerrainStudioApp:
 
         elif self.state.active_mode == 4:
             self.renderer_world.render(self.state, fps)
+
+        elif self.state.active_mode == 5:
+            self.renderer_lighting.render(self.state, fps)
 
     def _select_mesh_2d(self) -> CoordinateMesh2D:
         """Selects active 2D coordinate mesh based on stepping and scrub."""

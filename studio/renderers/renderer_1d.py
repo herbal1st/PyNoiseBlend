@@ -234,20 +234,21 @@ class Renderer1D(BaseRenderer):
             )
 
         title_color = (
-            config.COLOR_SELECTION
+            config.COLOR_INPUT_ACTIVE
             if is_selected
             else (
-                config.COLOR_MUTED_TITLE
+                config.COLOR_HUD_TEXT_MUTED
                 if is_silenced
-                else config.COLOR_TITLE
+                else config.COLOR_HUD_TEXT_NORMAL
             )
         )
         title_surf = self.font.render(title, True, title_color)
         box_w = title_surf.get_width() + 16
         box_h = title_surf.get_height() + 6
 
-        bg_card = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-        bg_card.fill(config.COLOR_TITLE_CARD)
+        bg_card = self.get_translucent_card_surface(
+            box_w, box_h, config.COLOR_HUD_CARD_2D
+        )
 
         tx = config.PANEL_TITLE_X
         ty = y_top + config.PANEL_TITLE_Y

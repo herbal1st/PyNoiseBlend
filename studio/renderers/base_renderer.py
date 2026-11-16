@@ -82,42 +82,105 @@ class BaseRenderer:
         extra_ctrl: str = "",
     ) -> None:
         """Renders combined two-line studio nav and controls card."""
-        mode_tags = [
+        pad = 6
+        line_gap = 4
+        line_h = self.font.get_linesize()
+
+        segments = self._build_footer_segments(active_mode)
+        nav_w = sum(surf.get_width() for surf, _ in segments)
+
+        ctrl_str = self._build_footer_controls_text(active_mode, extra_ctrl)
+        ctrl_surf = self.font.render(
+            ctrl_str, True, config.COLOR_HUD_TEXT_NORMAL
+        )
+
+        box_w = max(nav_w, ctrl_surf.get_width()) + (pad * 2)
+        box_h = (2 * line_h) + line_gap + (pad * 2)
+        rx = 10
+        ry = self.height - box_h - 10
+
+        bg_surf = self.get_translucent_card_surface(
+            box_w, box_h, config.COLOR_HUD_CARD_2D
+        )
+        self.screen.blit(bg_surf, (rx, ry))
+
+        self._draw_footer_nav_line(segments, rx + pad, ry + pad, line_h)
+        self.screen.blit(
+            ctrl_surf, (rx + pad, ry + pad + line_h + line_gap)
+        )
+
+    def _build_footer_segments(
+        self,
+        active_mode: int,
+    ) -> List[Tuple[pygame.Surface, bool]]:
+        """Renders footer mode tags and marks the active mode segment."""
+        mode_tags = (
             ("[1] Wave Math", 1),
             ("[2] 2D Strata", 2),
             ("[3] Raw Noise", 3),
             ("[4] World Map", 4),
-        ]
-        text_parts = [
-            f"*{lbl}*" if mid == active_mode else lbl
-            for lbl, mid in mode_tags
-        ]
-        nav_str = "STUDIO: " + " | ".join(text_parts)
+            ("[5] Lighting", 5),
+        )
+        prefix_surf = self.font.render(
+            "STUDIO: ", True, config.COLOR_HUD_TEXT_ACTIVE
+        )
+        pipe_surf = self.font.render(
+            " | ", True, config.COLOR_HUD_TEXT_MUTED
+        )
 
-        formula_str = "[TAB]: Formula | " if active_mode != 3 else ""
-        build_str = "[B]: Build | " if active_mode in (3, 4) else ""
+        segments: List[Tuple[pygame.Surface, bool]] = [(prefix_surf, False)]
+        for idx, (lbl, mid) in enumerate(mode_tags):
+            if idx > 0:
+                segments.append((pipe_surf, False))
+            is_active = mid == active_mode
+            color = (
+                config.COLOR_HUD_TEXT_ACTIVE
+                if is_active
+                else config.COLOR_HUD_TEXT_NORMAL
+            )
+            surf = self.font.render(lbl, True, color)
+            segments.append((surf, is_active))
+
+        return segments
+
+    def _build_footer_controls_text(
+        self,
+        active_mode: int,
+        extra_ctrl: str,
+    ) -> str:
+        """Formats context-sensitive control hints for the active mode."""
+        formula_str = "[TAB]: Formula | " if active_mode not in (3, 5) else ""
+        build_str = (
+            "[B]: Light | "
+            if active_mode == 5
+            else ("[B]: Build | " if active_mode in (3, 4) else "")
+        )
         persp_str = "[P]: Persp | " if active_mode == 2 else ""
         base_ctrl = (
-            f"[1-4]: View | {formula_str}{build_str}"
+            f"[1-5]: View | {formula_str}{build_str}"
             f"[LMB/RMB/Arrows]: Nav/Zoom (+SHIFT: Layer) | "
             f"[SPACE]: Step | [C/I]: Palette | {persp_str}"
             f"[N]: Net | [R]: Reset"
         )
-        ctrl_str = f"{base_ctrl} | {extra_ctrl}" if extra_ctrl else base_ctrl
+        return f"{base_ctrl} | {extra_ctrl}" if extra_ctrl else base_ctrl
 
-        pad = 6
-        line_h = self.font.get_linesize()
-        box_h = (2 * line_h) + (pad * 2)
-        ry = self.height - box_h - 10
-
-        footer_lines: List[Tuple[str, Tuple[int, int, int]]] = [
-            (nav_str, config.COLOR_HUD_TEXT_ACTIVE),
-            (ctrl_str, config.COLOR_HUD_TEXT_NORMAL),
-        ]
-        self.draw_card(
-            x=10,
-            y=ry,
-            lines=footer_lines,
-            bg_rgba=config.COLOR_HUD_CARD_2D,
-            pad=pad,
-        )
+    def _draw_footer_nav_line(
+        self,
+        segments: List[Tuple[pygame.Surface, bool]],
+        start_x: int,
+        start_y: int,
+        line_h: int,
+    ) -> None:
+        """Blits mode segments and frames the active mode in selection blue."""
+        curr_x = start_x
+        for surf, is_active in segments:
+            self.screen.blit(surf, (curr_x, start_y))
+            if is_active:
+                rect = (curr_x - 3, start_y - 1, surf.get_width() + 6, line_h + 2)
+                pygame.draw.rect(
+                    self.screen,
+                    config.COLOR_SELECTION,
+                    rect,
+                    config.PANEL_SELECTION_WIDTH,
+                )
+            curr_x += surf.get_width()

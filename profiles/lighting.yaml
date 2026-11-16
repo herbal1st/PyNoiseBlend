@@ -1,0 +1,71 @@
+profiles:
+
+  DEFAULT:
+    lightmap_sub_sample: 4
+    neutral_exposure: 0.75
+    day_cycle_duration: 60.0
+    start_time_ratio: 0.25
+    start_azimuth_deg: 180.0
+    start_altitude_deg: 10.0
+    terrain_steepness: 135.0
+    ambient_ratio: 0.25
+    shadow_intensity: 170
+    highlight_intensity: 120
+    ambient_keyframes:
+      - [0.00, 70, 100, 130]   # midnight
+      - [0.20, 85, 115, 155]   # pre-dawn
+      - [0.26, 215, 165, 135]  # sunrise
+      - [0.35, 255, 255, 255]  # morning
+      - [0.65, 255, 255, 255]  # afternoon
+      - [0.75, 230, 160, 120]  # sunset
+      - [0.84, 90, 115, 155]   # dusk
+      - [1.00, 70, 100, 130]   # midnight
+
+  GOLDEN_HOUR:
+    lightmap_sub_sample: 4
+    neutral_exposure: 0.80
+    day_cycle_duration: 0.0
+    start_time_ratio: 0.75
+    start_azimuth_deg: 0.0
+    start_altitude_deg: 12.0
+    terrain_steepness: 150.0
+    ambient_ratio: 0.25
+    shadow_intensity: 180
+    highlight_intensity: 130
+    ambient_keyframes:
+      - [0.00, 255, 185, 130]  # warm amber
+      - [1.00, 255, 185, 130]  # warm amber
+
+  NOCTURNAL:
+    lightmap_sub_sample: 4
+    neutral_exposure: 0.90
+    day_cycle_duration: 90.0
+    start_time_ratio: 0.05
+    start_azimuth_deg: 70.0
+    start_altitude_deg: 14.0
+    terrain_steepness: 135.0
+    ambient_ratio: 0.35
+    shadow_intensity: 175
+    highlight_intensity: 125
+    ambient_keyframes:
+      - [0.00, 65, 95, 135]    # moonlight
+      - [0.50, 95, 130, 175]   # pale moon
+      - [1.00, 65, 95, 135]    # moonlight
+
+
+# ============================================================================
+# LIGHTING PROFILE CONFIGURATION LEGEND
+# ============================================================================
+#
+# lightmap_sub_sample: Screen resolution divider for lightmap sampling [1-16].
+# neutral_exposure:    Neutral flat-ground illumination baseline [0.50 - 1.00].
+# day_cycle_duration:  Seconds for a full orbit cycle (0.0 = static sun).
+# start_time_ratio:    Starting normalized time-of-day [0.0 - 1.0].
+# start_azimuth_deg:   Initial sun compass angle in degrees [0.0 - 360.0).
+# start_altitude_deg:  Initial sun elevation angle in degrees [0.0 - 90.0].
+# terrain_steepness:   Hillshading contrast multiplier for slope gradients.
+# ambient_ratio:       Blend weight of ambient sky vs direct sun [0.0 - 1.0].
+# shadow_intensity:    Maximum darkening strength for away slopes [0 - 255].
+# highlight_intensity: Maximum brightening strength for lit slopes [0 - 255].
+# ambient_keyframes:   List of [time_ratio, R, G, B] ambient tint keyframes.
+# ============================================================================

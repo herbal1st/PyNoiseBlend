@@ -1,7 +1,7 @@
 """Shared chunk-streaming and coarse-preview base renderer."""
 
 import math
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 import numpy as np
 from numpy.typing import NDArray
 import pygame
@@ -31,6 +31,7 @@ class BaseChunkRenderer(BaseRenderer):
             (self.width, self.height)
         )
         self._scratch_surfaces: Dict[Tuple[int, int], pygame.Surface] = {}
+        self._last_scrub_field: Optional[NDArray[np.float32]] = None
         self._has_preview: bool = False
         self._is_refining: bool = False
         self._chunks_stale_from_scrub: bool = False
@@ -42,6 +43,7 @@ class BaseChunkRenderer(BaseRenderer):
         self._has_preview = False
         self._is_refining = False
         self._chunks_stale_from_scrub = False
+        self._last_scrub_field = None
 
     def _mark_chunks_stale(self) -> None:
         """Flags cached chunks for progressive rebuild without scrub."""
@@ -65,6 +67,8 @@ class BaseChunkRenderer(BaseRenderer):
             self._chunks_stale_from_scrub = False
             self._is_refining = True
 
+        sub_override = state.active_sub_sample_override
+
         if self._is_refining:
             remaining = self.chunk_manager.update_focus(
                 state.cam_x,
@@ -72,15 +76,21 @@ class BaseChunkRenderer(BaseRenderer):
                 float(self.width),
                 float(self.height),
                 max_new_chunks=config.CHUNK_REFINE_BUDGET_PER_FRAME,
+                sub_sample_override=sub_override,
             )
             self._draw_refinement_frame(state)
             if remaining == 0:
                 self._is_refining = False
                 self._has_preview = False
+                self._last_scrub_field = None
             return
 
         self.chunk_manager.update_focus(
-            state.cam_x, state.cam_y, float(self.width), float(self.height)
+            state.cam_x,
+            state.cam_y,
+            float(self.width),
+            float(self.height),
+            sub_sample_override=sub_override,
         )
         self.screen.fill(config.COLOR_BG)
         self.chunk_manager.draw_chunks(self.screen, state.cam_x, state.cam_y)
@@ -96,6 +106,7 @@ class BaseChunkRenderer(BaseRenderer):
         _, active_lut = state.active_palette
 
         if state.tile_stepping_enabled:
+            self._last_scrub_field = None
             self._bake_tiled_preview(
                 state, provider, active_lut, origin_x, origin_y
             )
@@ -125,6 +136,7 @@ class BaseChunkRenderer(BaseRenderer):
             height=self.height,
             sub_factor=config.SCRUB_SUB_SAMPLE_FACTOR,
         )
+        self._last_scrub_field = field
 
         if state.net_enabled:
             draw_culled_contour_net_to_surface(
@@ -169,6 +181,8 @@ class BaseChunkRenderer(BaseRenderer):
             height=self.height + tile_sz,
             sub_factor=1,
         )
+        self._last_scrub_field = field
+
         h_dim, w_dim = field.shape
         full_w = w_dim * tile_sz
         full_h = h_dim * tile_sz

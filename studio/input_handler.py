@@ -86,8 +86,15 @@ class InputHandler:
 
         mods = pygame.key.get_mods()
         shift_held = bool(mods & pygame.KMOD_SHIFT)
+        mode_keys = (
+            pygame.K_1,
+            pygame.K_2,
+            pygame.K_3,
+            pygame.K_4,
+            pygame.K_5,
+        )
 
-        if event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+        if event.key in mode_keys:
             state.sync_to_mode(int(event.unicode))
             self._clamp_focus_for_active_mode(state)
         elif event.key == pygame.K_SPACE:
@@ -106,6 +113,8 @@ class InputHandler:
                 state.cycle_noise_profile(direction)
             elif state.active_mode == 4:
                 state.cycle_world_profile(direction)
+            elif state.active_mode == 5:
+                state.cycle_lighting_profile(direction)
         elif event.key == pygame.K_c:
             state.cycle_palette(-1 if shift_held else 1)
         elif event.key == pygame.K_i:
@@ -129,7 +138,11 @@ class InputHandler:
                     )
         elif event.key in (pygame.K_UP, pygame.K_DOWN):
             direction = -1 if event.key == pygame.K_UP else 1
-            if state.active_mode in (3, 4):
+            if state.active_mode == 5:
+                state.selected_light_row = (
+                    state.selected_light_row + direction
+                ) % config.LIGHT_MATRIX_ROW_COUNT
+            elif state.active_mode in (3, 4):
                 if shift_held:
                     matrix_tuner.move_matrix_column(state, direction)
                 else:
@@ -137,9 +150,12 @@ class InputHandler:
             else:
                 wave_tuner.move_channel_focus(state, direction)
         elif event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-            if state.active_mode in (3, 4):
+            direction = 1 if event.key == pygame.K_RIGHT else -1
+            if state.active_mode == 5:
+                if self._is_discrete_light_row(state.selected_light_row):
+                    self._step_light_param(state, direction)
+            elif state.active_mode in (3, 4):
                 if StudioState.is_discrete_row(state.selected_matrix_row):
-                    direction = 1 if event.key == pygame.K_RIGHT else -1
                     matrix_tuner.step_matrix_param(state, direction)
 
         return True
@@ -152,6 +168,16 @@ class InputHandler:
     ) -> None:
         """Selects clicked cell, toggles parameters, or engages drag."""
         shift_held = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
+
+        if state.active_mode == 5:
+            handled, start_drag = self._handle_light_mouse_down(
+                state, button, pos, shift_held
+            )
+            if handled:
+                if start_drag:
+                    self.active_mouse_button = button
+                    self.drag_start = pos
+                return
 
         if state.active_mode in (3, 4):
             handled, start_drag = self._handle_matrix_mouse_down(
@@ -185,6 +211,27 @@ class InputHandler:
 
         self.active_mouse_button = button
         self.drag_start = pos
+
+    def _handle_light_mouse_down(
+        self,
+        state: StudioState,
+        button: int,
+        pos: Tuple[int, int],
+        shift_held: bool,
+    ) -> Tuple[bool, bool]:
+        """Handles Solar Control Deck clicks. Returns (handled, drag)."""
+        for row_id, rect in state.light_hitboxes.items():
+            if not rect.collidepoint(pos):
+                continue
+
+            state.selected_light_row = row_id
+            direction = -1 if (button == 3 or shift_held) else 1
+            if self._is_discrete_light_row(row_id):
+                self._step_light_param(state, direction)
+                return True, False
+            return True, True
+
+        return False, False
 
     def _handle_matrix_mouse_down(
         self,
@@ -243,6 +290,13 @@ class InputHandler:
             self._handle_left_drag(state, dx, dy, shift_held)
         elif self.active_mouse_button == 3 and dx != 0:
             factor = math.exp(float(dx) * config.MOUSE_ZOOM_SENSITIVITY)
+            if state.active_mode == 5:
+                if state.selected_light_row == config.LIGHT_ROW_SCALE:
+                    self._scrub_light_scale(state, factor)
+                elif not self._is_discrete_light_row(state.selected_light_row):
+                    self._scrub_light_param(state, float(dx) * 0.006)
+                return
+
             if state.active_mode in (3, 4):
                 if not StudioState.is_discrete_row(state.selected_matrix_row):
                     direction = 1 if dx > 0 else -1
@@ -275,7 +329,7 @@ class InputHandler:
             state.mark_scrubbing()
             return
 
-        if not shift_held:
+        if state.active_mode == 5 or not shift_held:
             state.cam_x -= float(dx)
             state.cam_y -= float(dy)
             return
@@ -292,7 +346,7 @@ class InputHandler:
         """Processes held keys for camera panning and continuous scaling."""
         keys = pygame.key.get_pressed()
 
-        if state.active_mode in (3, 4):
+        if state.active_mode in (3, 4, 5):
             step = config.TEST_PAN_SPEED * dt
             if keys[pygame.K_w]:
                 state.cam_y -= step
@@ -310,6 +364,15 @@ class InputHandler:
 
         direction = 1 if move_right else -1
         shift_held = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
+
+        if state.active_mode == 5:
+            if state.selected_light_row == config.LIGHT_ROW_SCALE:
+                step_scale = 1.0 + (config.NOISE_SCALE_ZOOM_RATE * dt)
+                factor = step_scale if move_right else (1.0 / step_scale)
+                self._scrub_light_scale(state, factor)
+            elif not self._is_discrete_light_row(state.selected_light_row):
+                self._scrub_light_param(state, float(direction) * dt)
+            return
 
         if state.active_mode in (3, 4):
             if StudioState.is_discrete_row(state.selected_matrix_row):
@@ -330,6 +393,105 @@ class InputHandler:
         wave_tuner.scale_wave_cycles(state, factor, single_layer=shift_held)
         state.mark_scrubbing()
 
+    @staticmethod
+    def _scrub_light_scale(state: StudioState, factor: float) -> None:
+        """Scales active Mode 5 world source proportionally around camera."""
+        if state.light_world_source_index == 0:
+            matrix_tuner.scale_world_layers(
+                state, factor, single_layer=False
+            )
+        else:
+            preset_key = state.active_light_world_label
+            wp = state.world_profiles.get(preset_key)
+            if wp is not None:
+                base_prof = state.default_noise_profiles.get(
+                    wp.base_noise_profile
+                )
+                if base_prof is not None:
+                    state.scale_light_preset(
+                        preset_key, base_prof.scale, factor
+                    )
+        state.mark_scrubbing()
+
+    @staticmethod
+    def _is_discrete_light_row(row_id: int) -> bool:
+        """Checks if a Solar Control Deck row uses discrete stepping."""
+        return row_id in (
+            config.LIGHT_ROW_PRESET,
+            config.LIGHT_ROW_WORLD,
+            config.LIGHT_ROW_ORBIT_SPEED,
+        )
+
+    @staticmethod
+    def _step_light_param(state: StudioState, direction: int) -> None:
+        """Steps discrete Solar Control Deck parameters by one increment."""
+        row = state.selected_light_row
+        if row == config.LIGHT_ROW_PRESET:
+            state.cycle_lighting_profile(direction)
+        elif row == config.LIGHT_ROW_WORLD:
+            state.cycle_light_world_source(direction)
+        elif row == config.LIGHT_ROW_ORBIT_SPEED:
+            scales = config.LIGHT_ORBIT_SCALES
+            cur_idx = (
+                scales.index(state.light_orbit_scale)
+                if state.light_orbit_scale in scales
+                else 0
+            )
+            next_idx = (cur_idx + direction) % len(scales)
+            state.light_orbit_scale = scales[next_idx]
+
+    @staticmethod
+    def _scrub_light_param(state: StudioState, delta_unit: float) -> None:
+        """Adjusts continuous Solar Control Deck parameters smoothly."""
+        row = state.selected_light_row
+        if row == config.LIGHT_ROW_AZIMUTH:
+            state.light_azimuth_deg = (
+                state.light_azimuth_deg
+                + (delta_unit * config.LIGHT_AZIMUTH_RATE)
+            ) % 360.0
+        elif row == config.LIGHT_ROW_ALTITUDE:
+            state.light_altitude_deg = max(
+                0.0,
+                min(
+                    90.0,
+                    state.light_altitude_deg
+                    + (delta_unit * config.LIGHT_ALTITUDE_RATE),
+                ),
+            )
+        elif row == config.LIGHT_ROW_CONTRAST:
+            state.light_contrast = max(
+                config.LIGHT_CONTRAST_MIN,
+                min(
+                    config.LIGHT_CONTRAST_MAX,
+                    state.light_contrast
+                    + (delta_unit * config.LIGHT_CONTRAST_RATE),
+                ),
+            )
+        elif row == config.LIGHT_ROW_AMBIENT:
+            state.light_ambient_ratio = max(
+                0.0,
+                min(
+                    1.0,
+                    state.light_ambient_ratio
+                    + (delta_unit * config.LIGHT_AMBIENT_RATE),
+                ),
+            )
+        elif row == config.LIGHT_ROW_TIME:
+            state.light_time_ratio = (
+                state.light_time_ratio
+                + (delta_unit * config.LIGHT_TIME_RATE)
+            ) % 1.0
+            state.light_time_dirty = True
+        elif row == config.LIGHT_ROW_EXPOSURE:
+            state.light_exposure = max(
+                config.LIGHT_EXPOSURE_MIN,
+                min(
+                    config.LIGHT_EXPOSURE_MAX,
+                    state.light_exposure
+                    + (delta_unit * config.LIGHT_EXPOSURE_RATE),
+                ),
+            )
+
     def _clamp_focus_for_active_mode(self, state: StudioState) -> None:
         """Clamps channel or matrix column focus for the active mode."""
         wave_tuner.clamp_channel_focus(state)
@@ -347,5 +509,7 @@ class InputHandler:
             matrix_tuner.reset_noise_tuning(state)
         elif state.active_mode == 4:
             matrix_tuner.reset_world_tuning(state, reset_all=reset_all)
+        elif state.active_mode == 5:
+            state.reset_lighting_tuning()
         else:
             state.reset_wave_channels(reset_all=reset_all)

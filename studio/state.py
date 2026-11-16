@@ -12,6 +12,10 @@ from world.chunks.chunk_profile import ChunkProfile, ChunkProfileLoader
 from world.chunks.world_profile import WorldProfile, WorldProfileLoader
 from world.strata.strata_loader import StrataLoader
 from world.strata.strata_profile import StrataProfile
+from world.lighting.lighting_profile import (
+    LightingProfile,
+    LightingProfileLoader,
+)
 
 
 @dataclass(slots=True)
@@ -63,6 +67,7 @@ class StudioState:
     net_bandwidth: float = config.DEFAULT_NET_BANDWIDTH
     is_inverted: bool = False
     is_warped: bool = False
+    compute_gradients: bool = config.ENABLE_SLOPE_GRADIENTS
 
     cam_x: float = 0.0
     cam_y: float = 0.0
@@ -72,6 +77,29 @@ class StudioState:
     needs_refine_chunks: bool = False
     is_scrubbing: bool = False
     scrub_timer: float = 0.0
+    fallback_latched: bool = False
+    fallback_low_fps_timer: float = 0.0
+
+    selected_light_row: int = config.LIGHT_ROW_AZIMUTH
+    light_azimuth_deg: float = 90.0
+    light_altitude_deg: float = 10.0
+    light_contrast: float = 135.0
+    light_ambient_ratio: float = 0.25
+    light_orbit_scale: float = 1.0
+    light_time_ratio: float = 0.30
+    light_exposure: float = 0.85
+    light_time_dirty: bool = False
+    light_world_source_index: int = 0
+    light_preset_transforms: Dict[str, Tuple[float, float, float]] = field(
+        default_factory=dict
+    )
+    light_hitboxes: Dict[int, pygame.Rect] = field(default_factory=dict)
+
+    lighting_profiles: Dict[str, LightingProfile] = field(
+        default_factory=LightingProfileLoader.load_profiles
+    )
+    lighting_keys: List[str] = field(default_factory=list)
+    active_lighting_index: int = 0
 
     active_palette_index: int = 0
     channel_hitboxes: Dict[int, pygame.Rect] = field(default_factory=dict)
@@ -107,6 +135,7 @@ class StudioState:
         self.palette_keys = list(self.strata_profiles.keys())
         self.noise_keys = list(self.default_noise_profiles.keys())
         self.world_keys = list(self.world_profiles.keys())
+        self.lighting_keys = list(self.lighting_profiles.keys())
 
         self.working_noise_profiles = {
             k: v.clone() for k, v in self.default_noise_profiles.items()
@@ -122,6 +151,12 @@ class StudioState:
         self.world_base_profile_key = wp.base_noise_profile
         self.world_macro_profile_key = wp.macro_noise_profile
         self.world_crust_profile_key = wp.crust_noise_profile
+
+        if config.ACTIVE_LIGHTING_PROFILE in self.lighting_keys:
+            self.active_lighting_index = self.lighting_keys.index(
+                config.ACTIVE_LIGHTING_PROFILE
+            )
+        self.reset_lighting_tuning()
 
     # ------ Classification & Helper Static Methods ------
 
@@ -185,6 +220,27 @@ class StudioState:
             config.ACTIVE_CHUNK_PROFILE,
             list(self.chunk_profiles.values())[0],
         )
+
+    @property
+    def active_lighting_profile(self) -> LightingProfile:
+        """Returns currently active LightingProfile preset."""
+        key = self.lighting_keys[self.active_lighting_index]
+        return self.lighting_profiles[key]
+
+    @property
+    def active_light_world_label(self) -> str:
+        """Returns display label for the active Mode 5 world source."""
+        if self.light_world_source_index == 0:
+            return "MODE 4 (LIVE)"
+        idx = (self.light_world_source_index - 1) % len(self.world_keys)
+        return self.world_keys[idx]
+
+    @property
+    def active_sub_sample_override(self) -> Optional[int]:
+        """Returns fallback sub-sampling divider when latch is engaged."""
+        if not self.fallback_latched:
+            return None
+        return config.RESOLUTION_FALLBACK_DIVIDER
 
     # ------ Layer Profile Lookups ------
 
@@ -288,6 +344,28 @@ class StudioState:
         if self.scrub_timer <= 0.0:
             self.settle_scrubbing()
 
+    def check_resolution_fallback(self, fps: float, dt: float) -> None:
+        """Monitors sustained low FPS and latches chunk downscaling."""
+        if not config.ENABLE_AUTO_RESOLUTION_FALLBACK:
+            return
+        if self.fallback_latched:
+            return
+        if self.active_mode not in (3, 4, 5) or fps <= 0.0:
+            self.fallback_low_fps_timer = 0.0
+            return
+
+        if fps < float(config.RESOLUTION_FALLBACK_FPS_THRESHOLD):
+            self.fallback_low_fps_timer += dt
+            if (
+                self.fallback_low_fps_timer
+                >= config.RESOLUTION_FALLBACK_TRIGGER_SECONDS
+            ):
+                self.fallback_latched = True
+                self.fallback_low_fps_timer = 0.0
+                self.needs_refine_chunks = True
+        else:
+            self.fallback_low_fps_timer = 0.0
+
     # ------ Wave Reset & Catalog Navigation ------
 
     def reset_wave_channels(self, reset_all: bool) -> None:
@@ -349,6 +427,66 @@ class StudioState:
         self.world_crust_profile_key = wp.crust_noise_profile
         self.mark_discrete_change()
 
+    def cycle_lighting_profile(self, direction: int) -> None:
+        """Cycles active solar lighting preset forward or backward."""
+        self.active_lighting_index = (
+            self.active_lighting_index + direction
+        ) % len(self.lighting_keys)
+        self.reset_lighting_tuning()
+
+    def cycle_light_world_source(self, direction: int) -> None:
+        """Cycles Mode 5 world source between Mode 4 Live and YAML builds."""
+        total = 1 + len(self.world_keys)
+        self.light_world_source_index = (
+            self.light_world_source_index + direction
+        ) % total
+
+    def reset_lighting_tuning(self) -> None:
+        """Restores Mode 5 solar parameters from active lighting preset."""
+        lp = self.active_lighting_profile
+        self.light_azimuth_deg = lp.start_azimuth_deg
+        self.light_altitude_deg = lp.start_altitude_deg
+        self.light_contrast = lp.terrain_steepness
+        self.light_ambient_ratio = lp.ambient_ratio
+        self.light_orbit_scale = 0.0 if lp.day_cycle_duration <= 0.0 else 1.0
+        self.light_time_ratio = lp.start_time_ratio
+        self.light_exposure = lp.neutral_exposure
+        self.light_preset_transforms.clear()
+        self.light_time_dirty = True
+
+    def get_light_preset_transform(
+        self,
+        preset_key: str,
+    ) -> Tuple[float, float, float]:
+        """Returns (zoom_ratio, offset_x, offset_y) for a Mode 5 preset."""
+        return self.light_preset_transforms.get(preset_key, (1.0, 0.0, 0.0))
+
+    def scale_light_preset(
+        self,
+        preset_key: str,
+        base_scale: float,
+        factor: float,
+    ) -> None:
+        """Scales a Mode 5 world preset non-destructively around camera."""
+        old_ratio, off_x, off_y = self.get_light_preset_transform(preset_key)
+        old_eff = base_scale * old_ratio
+        new_eff = max(
+            config.NOISE_MIN_SCALE,
+            min(config.NOISE_MAX_SCALE, old_eff / factor),
+        )
+        if new_eff == old_eff:
+            return
+
+        step_ratio = new_eff / old_eff
+        new_ratio = new_eff / max(0.001, base_scale)
+        new_ox = self.cam_x - ((self.cam_x - off_x) * step_ratio)
+        new_oy = self.cam_y - ((self.cam_y - off_y) * step_ratio)
+        self.light_preset_transforms[preset_key] = (
+            new_ratio,
+            new_ox,
+            new_oy,
+        )
+
     def cycle_palette(self, direction: int) -> None:
         """Cycles active color palette forward or backward."""
         self.active_palette_index = (
@@ -400,6 +538,7 @@ class StudioState:
         self.active_mode = mode
         self.channel_hitboxes.clear()
         self.matrix_hitboxes.clear()
+        self.light_hitboxes.clear()
         self.cancel_seed_editing()
 
         if mode in (3, 4):

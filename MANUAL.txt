@@ -13,11 +13,12 @@
 
 [!] CROSS-REFERENCE NOTICE:
     - This manual covers global runtime and hardware variables in config.py.
-    - Recipes for spatial chunking, procedural noise, world builds, and strata
-      contain dedicated configuration legends directly inside their respective
-      YAML files (profiles/chunk.yaml, noise.yaml, world.yaml, and strata.yaml).
+    - Recipes for spatial chunking, procedural noise, world builds, strata,
+      and lighting contain dedicated legends directly inside their respective
+      YAML files (profiles/chunk.yaml, noise.yaml, world.yaml, strata.yaml,
+      and lighting.yaml).
     - For architectural specifications, mathematical formulations, and memory
-      conventions, refer to README.txt.
+      conventions, refer to README.md.
 
 
 [DISPLAY & RESOLUTION SETTINGS]
@@ -36,11 +37,11 @@ SCREEN_HEIGHT                 : Vertical height of the application window on
 
 FPS                           : Target frame rate cap controlling simulation
                                 refresh frequency, animation smoothness, and
-                                clock timing (e.g. 60 FPS).
+                                clock timing.
                                 Metric: Hertz / Frames per second (int).
 
 BACKGROUND_COLOR              : Clear color used to wipe the 1D oscilloscope
-                                canvas behind wave signal panels (pure white).
+                                canvas behind wave signal panels.
                                 Metric: RGB color tuple (int, int, int).
 
 
@@ -51,14 +52,15 @@ DEFAULT_VIEW_MODE             : Initial viewport active on application startup:
                                   2 = Mode 2: 2D Spatial Synthesizer
                                   3 = Mode 3: Raw Procedural Noise Explorer
                                   4 = Mode 4: Endless Procedural World Explorer
-                                Metric: Integer mode selector [1 - 4] (int).
+                                  5 = Mode 5: Solar Lighting Studio
+                                Metric: Integer mode selector [1 - 5] (int).
 
 DEFAULT_TILE_SIZE             : Initial pixel width and height of each block
                                 when retro tile quantization is toggled on.
                                 Metric: Pixels (int).
 
 MIN_TILE_SIZE                 : Smallest power-of-two tile block size allowed
-                                when stepping tile blocks finer (8px).
+                                when stepping tile blocks finer.
                                 Metric: Pixels (int).
 
 MAX_TILE_SIZE                 : Largest power-of-two tile block size allowed
@@ -69,8 +71,7 @@ WARP_FACTOR                   : Coordinate bending strength used by Mode 2's
                                 Warped perspective. Controls how strongly the
                                 warping layer (Relief in 3-layer formulas, or
                                 Crust in 2-layer formulas) bends straight
-                                vertical Base stripes into winding mountain
-                                belts.
+                                vertical Base stripes into winding ridges.
                                 Metric: Fraction multiplier [0.0 - 1.0] (float).
 
 
@@ -78,37 +79,35 @@ WARP_FACTOR                   : Coordinate bending strength used by Mode 2's
 -------------------------------------------------------------------------------
 DEFAULT_NET_ENABLED           : Initial state of the Topographical Relief Net
                                 (contour line view) on startup. In 1D, switches
-                                solid fills to a colored curve; in 2D/3D/4D,
+                                solid fills to a colored curve; in 2D/3D/4D/5D,
                                 switches raster terrain to elevation contours.
                                 Metric: Toggle boolean (bool).
 
 DEFAULT_NET_INTERVALS         : Number of elevation steps dividing the terrain
                                 between sea level (0.0) and mountain peaks
-                                (1.0). For example, 9.0 intervals create 10
-                                distinct elevation contour lines.
+                                (1.0). N intervals create N + 1 distinct
+                                elevation contour lines.
                                 Metric: Float interval count (float).
 
 DEFAULT_NET_BANDWIDTH         : Line thickness tolerance used in continuous
                                 smooth mode to draw unbroken contour lines.
                                 Metric: Float height tolerance (float).
 
-COLOR_NET_BACKGROUND          : Deep midnight-slate background color drawn
-                                behind contour lines in Net mode.
+COLOR_NET_BACKGROUND          : Background color drawn behind contour lines in
+                                Net mode.
                                 Metric: RGB color tuple (int, int, int).
 
 
 [MATHEMATICAL ELEVATION BUDGETS]
 -------------------------------------------------------------------------------
 CRUST_BUDGET                  : Maximum height share allocated to the broad
-                                Continental Crust wave (e.g. 0.40 = 40%).
-                                In budget formulas, CRUST_BUDGET + RELIEF_BUDGET
-                                equals 1.000, preventing mountain peaks from
-                                flattening against a ceiling.
+                                Continental Crust wave. In budget formulas,
+                                CRUST_BUDGET + RELIEF_BUDGET equals 1.0,
+                                preventing peaks from clipping at a ceiling.
                                 Metric: Fraction share [0.0 - 1.0] (float).
 
 RELIEF_BUDGET                 : Maximum height share allocated to base detail
-                                mountains and undulating hills (e.g. 0.60 =
-                                60%).
+                                mountains and undulating hills.
                                 Metric: Fraction share [0.0 - 1.0] (float).
 
 MIN_RELIEF_FACTOR             : Minimum relief multiplier floor ensuring that
@@ -179,14 +178,14 @@ CRUST_MAX_CYCLES                Continental Crust tectonic cycle tuning.
 -------------------------------------------------------------------------------
 NOISE_SCALE_ZOOM_RATE         : How quickly terrain feature sizes tighten or
                                 widen when holding LEFT or RIGHT arrows in
-                                Modes 3 and 4 (RIGHT zooms out to smaller,
+                                Modes 3, 4, and 5 (RIGHT zooms out to smaller,
                                 denser features; LEFT zooms in to larger ones,
                                 anchored at the screen center).
                                 Metric: Rate multiplier per second (float).
 
 MOUSE_ZOOM_SENSITIVITY        : Controls how quickly waves and terrain features
                                 zoom when dragging horizontally with the Right
-                                Mouse Button (RMB) across all 4 modes, using
+                                Mouse Button (RMB) across viewports, using
                                 smooth exponential scaling per pixel dragged.
                                 Metric: Zoom rate per pixel (float).
 
@@ -203,23 +202,23 @@ NOISE_MAX_SCALE               : Largest allowed noise feature width in pixels.
 
 [EXTENDED NOISE PARAMETER CLAMPS & STEP RATES]
 -------------------------------------------------------------------------------
-OCTAVE_MIN                    : Minimum number of noise detail passes (1).
-                                At 1 octave, terrain shows only the broad,
-                                smooth foundation with no extra crags.
+OCTAVE_MIN                    : Minimum number of noise detail passes. At 1
+                                octave, terrain shows only the broad, smooth
+                                foundation with no extra crags.
                                 Metric: Octaves count (int).
 
-OCTAVE_MAX                    : Maximum number of noise detail passes allowed
-                                (6). Capped at 6 to prevent runaway math and
-                                frame rate drops on low-spec hardware.
+OCTAVE_MAX                    : Maximum number of noise detail passes allowed.
+                                Capped to prevent runaway math and frame rate
+                                drops on low-spec hardware.
                                 Metric: Octaves count (int).
 
-DECAY_MIN                     : Smallest allowed persistence/decay multiplier
-                                (0.05). Makes higher detail octaves fade away
-                                almost completely, leaving smooth hills.
+DECAY_MIN                     : Smallest allowed persistence/decay multiplier.
+                                Makes higher detail octaves fade away almost
+                                completely, leaving smooth hills.
                                 Metric: Fraction share [0.0 - 1.0] (float).
 
-DECAY_MAX                     : Largest allowed persistence multiplier (1.00).
-                                Keeps higher octaves strong, resulting in rough,
+DECAY_MAX                     : Largest allowed persistence multiplier. Keeps
+                                higher octaves strong, resulting in rough,
                                 jagged, and craggy landscapes.
                                 Metric: Fraction share [0.0 - 1.0] (float).
 
@@ -228,62 +227,66 @@ DECAY_STEP_RATE               : Rate at which persistence (decay) increases or
                                 Metric: Fraction change per second (float).
 
 LACUNARITY_MIN                : Smallest allowed frequency multiplier between
-                                octaves (1.00). Keeps all octaves at the same
+                                octaves. Keeps all octaves near the same
                                 wavelength.
                                 Metric: Multiplier factor (float).
 
-LACUNARITY_MAX                : Largest allowed frequency multiplier (4.00).
-                                Rapidly tightens each extra octave into very
-                                fine, high-frequency surface ripples.
+LACUNARITY_MAX                : Largest allowed frequency multiplier. Rapidly
+                                tightens each extra octave into very fine,
+                                high-frequency surface ripples.
                                 Metric: Multiplier factor (float).
 
 LACUNARITY_STEP_RATE          : Rate at which lacunarity increases or decreases
                                 per second when scrubbing smoothly.
                                 Metric: Multiplier change per second (float).
 
-SUB_SAMPLE_FACTORS            : Tuple of allowed coarse sampling dividers:
-                                  (1, 2, 4, 8)
-                                1x evaluates every pixel at full native detail;
-                                2x evaluates 1/4 of the points; 4x cuts math
-                                by ~93%, and 8x cuts math by ~98% before
-                                smoothly upscaling to native resolution.
+SUB_SAMPLE_FACTORS            : Tuple of allowed coarse sampling dividers. 1x
+                                evaluates every pixel at full native detail;
+                                higher dividers evaluate progressively coarser
+                                grids before smoothly upscaling to native res.
                                 Metric: Integer dividers tuple (tuple of ints).
 
 NOISE_TYPES                   : Supported procedural noise algorithms available
-                                for live cycling:
-                                  ("SIMPLEX", "PERLIN", "VALUE")
+                                for live cycling (Simplex, Perlin, Value).
                                 Metric: Tuple of strings (tuple of str).
 
 
 [PARAMETER MATRIX ROW INDICES]
 -------------------------------------------------------------------------------
-ROW_PROFILE                   : Row index 0 in the Mode 3/4 matrix table.
-                                Displays and cycles the assigned noise preset.
+ROW_PROFILE                   : Matrix row index displaying and cycling the
+                                assigned noise preset.
                                 Metric: Integer row index (int).
 
-ROW_SCALE                     : Row index 1. Controls feature size in pixels.
+ROW_SCALE                     : Matrix row index controlling feature size in
+                                pixels.
                                 Metric: Integer row index (int).
 
-ROW_OCTAVES                   : Row index 2. Controls number of detail passes.
+ROW_OCTAVES                   : Matrix row index controlling number of detail
+                                passes.
                                 Metric: Integer row index (int).
 
-ROW_PERSIST                   : Row index 3. Controls octave amplitude decay.
+ROW_PERSIST                   : Matrix row index controlling octave amplitude
+                                decay.
                                 Metric: Integer row index (int).
 
-ROW_LACUNARITY                : Row index 4. Controls octave frequency growth.
+ROW_LACUNARITY                : Matrix row index controlling octave frequency
+                                growth.
                                 Metric: Integer row index (int).
 
-ROW_SUBSAMPLE                 : Row index 5. Controls coarse sampling divider.
+ROW_SUBSAMPLE                 : Matrix row index controlling coarse sampling
+                                divider.
                                 Metric: Integer row index (int).
 
-ROW_SEED                      : Row index 6. Controls individual layer seed.
+ROW_SEED                      : Matrix row index controlling individual layer
+                                seed.
                                 Metric: Integer row index (int).
 
-ROW_WORLD_SEED                : Row index 7. Master world seed row in Mode 4.
+ROW_WORLD_SEED                : Matrix row index for the master world seed in
+                                Mode 4.
                                 Metric: Integer row index (int).
 
 MATRIX_ROW_COUNT              : Total number of rows in the Mode 4 parameter
-                                matrix table (8 rows).
+                                matrix table.
                                 Metric: Integer count (int).
 
 
@@ -291,9 +294,9 @@ MATRIX_ROW_COUNT              : Total number of rows in the Mode 4 parameter
 -------------------------------------------------------------------------------
 SCRUB_SUB_SAMPLE_FACTOR       : Temporary grid divider used while actively
                                 zooming frequencies/scales or dragging layer
-                                offsets. Evaluating every 4th point (4) cuts
-                                math workload sharply for fluid live previews;
-                                in Relief Net mode, coarse-cell culling draws
+                                offsets. Evaluating a coarser grid cuts math
+                                workload sharply for fluid live previews; in
+                                Relief Net mode, coarse-cell culling draws
                                 crisp 1px lines directly from this grid before
                                 snapping back to full detail when tuning stops.
                                 Metric: Integer grid divider (int).
@@ -307,64 +310,179 @@ SCRUB_SETTLE_DELAY            : Short pause after releasing a keyboard tuning ke
 
 CHUNK_REFINE_BUDGET_PER_FRAME : Maximum number of full-detail terrain chunks
                                 rebuilt per frame after tuning settles in Modes
-                                3 and 4. Spreads work over several frames so
-                                the screen sharpens smoothly from the center
+                                3, 4, and 5. Spreads work over several frames
+                                so the screen sharpens smoothly from the center
                                 outward without stuttering.
                                 Metric: Chunks per frame (int).
 
 
 [DYNAMIC RESOLUTION FALLBACK LATCH]
 -------------------------------------------------------------------------------
-ENABLE_AUTO_RESOLUTION_FALLBACK: Master performance safety switch. When wired
-                                into the runtime loop and enabled, it monitors
-                                frame rates and shifts chunk generation into
-                                sub-sampled mode if hardware falls behind.
+ENABLE_AUTO_RESOLUTION_FALLBACK: Master performance safety switch. Actively
+                                monitors frame rates in Modes 3, 4, and 5 and
+                                shifts chunk generation into sub-sampled mode
+                                if hardware falls behind, appending a fallback
+                                tag to the HUD FPS readout.
                                 Metric: Toggle boolean (bool).
 
-RESOLUTION_FALLBACK_DIVIDER   : Downscaling divider used when the fallback
-                                latch engages (e.g. 2 evaluates 64x64 points
-                                for a 128x128 chunk, cutting math by 75%
-                                before upscaling smoothly).
-                                Metric: Integer divisor [2, 4, 8] (int).
+RESOLUTION_FALLBACK_DIVIDER   : Downscaling divider used for terrain chunks
+                                when the fallback latch engages, cutting noise
+                                math sharply before upscaling smoothly. Never
+                                upscales a profile already at a coarser grid.
+                                Metric: Integer divisor (int).
 
-RESOLUTION_FALLBACK_FPS_THRESHOLD: Minimum acceptable frame rate floor.
-                                Falling below this speed (e.g. 25 FPS) starts
-                                the countdown timer toward engaging the latch.
+LIGHTMAP_FALLBACK_DIVIDER     : Coarser screen divider used for Mode 5's
+                                lighting overlay when the fallback latch
+                                engages, reducing lightmap sampling work
+                                without altering terrain detail.
+                                Metric: Integer divisor (int).
+
+RESOLUTION_FALLBACK_FPS_THRESHOLD: Minimum acceptable frame rate floor. Falling
+                                below this speed starts the countdown timer
+                                toward engaging the fallback latch.
                                 Metric: Frame rate in Hertz / FPS (int).
 
 RESOLUTION_FALLBACK_TRIGGER_SECONDS: Grace period (in real-world seconds) that
                                 frame rates must stay below the threshold
-                                before latching into lower-res chunk mode,
-                                avoiding false triggers from brief spikes.
+                                before latching into lower-res mode, avoiding
+                                false triggers from brief spikes.
                                 Metric: Elapsed seconds (float).
+
+
+[SLOPE GRADIENT DEFERRAL]
+-------------------------------------------------------------------------------
+ENABLE_SLOPE_GRADIENTS        : Controls whether Mode 4 world chunks calculate
+                                terrain slope-tilt arrays (gx, gy) and their
+                                extra 1-pixel border halo during generation.
+                                Keeping this False during flat Mode 4 terrain
+                                exploration reclaims chunk bake speed; Mode 5
+                                enables gradients on its own chunk manager.
+                                Metric: Toggle boolean (bool).
+
+
+[SOLAR LIGHTING STUDIO SETTINGS]
+-------------------------------------------------------------------------------
+LIGHT_ROW_PRESET              : Solar Control Deck row index for selecting and
+                                cycling lighting presets from lighting.yaml.
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_WORLD               : Solar Control Deck row index switching Mode 5
+                                between the live Mode 4 world and baseline
+                                world.yaml builds.
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_AZIMUTH             : Solar Control Deck row index controlling the
+                                sun's compass angle around the horizon in
+                                degrees [0.0 - 360.0).
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_ALTITUDE            : Solar Control Deck row index controlling how
+                                high the sun sits above the horizon (0 = low
+                                grazing shadows, 90 = straight overhead noon).
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_CONTRAST            : Solar Control Deck row index controlling how
+                                strongly terrain slopes catch sunlight and cast
+                                shadows.
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_AMBIENT             : Solar Control Deck row index balancing flat
+                                ambient sky light against directional sunlight
+                                (0.0 = harsh direct sun, 1.0 = pure ambient).
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_ORBIT_SPEED         : Solar Control Deck row index controlling the
+                                day/night orbit clock speed multiplier.
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_TIME                : Solar Control Deck row index scrubbing the
+                                normalized time-of-day across [0.0 - 1.0].
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_EXPOSURE            : Solar Control Deck row index controlling the
+                                neutral brightness baseline for flat ground,
+                                giving sunlit slopes room to brighten above
+                                flat plains instead of clipping at midday.
+                                Metric: Integer row index (int).
+
+LIGHT_ROW_SCALE               : Solar Control Deck row index exposing unified
+                                world feature scaling in Mode 5, zooming all
+                                active terrain layers together around the
+                                camera center.
+                                Metric: Integer row index (int).
+
+LIGHT_MATRIX_ROW_COUNT        : Total number of rows in the Mode 5 Solar
+                                Control Deck table.
+                                Metric: Integer count (int).
+
+LIGHT_AZIMUTH_RATE            : Rotation speed in degrees per second when
+                                scrubbing Sun Azimuth with keys or mouse.
+                                Metric: Degrees per second (float).
+
+LIGHT_ALTITUDE_RATE           : Elevation speed in degrees per second when
+                                scrubbing Sun Altitude.
+                                Metric: Degrees per second (float).
+
+LIGHT_CONTRAST_MIN            : Minimum and maximum hillshade contrast limits
+LIGHT_CONTRAST_MAX              controlling how gently or dramatically terrain
+                                slopes are shaded in Mode 5.
+                                Metric: Multiplier factor (float).
+
+LIGHT_CONTRAST_RATE           : Rate at which hillshade contrast changes per
+                                second when scrubbing smoothly.
+                                Metric: Multiplier change per second (float).
+
+LIGHT_AMBIENT_RATE            : Rate at which the ambient sky ratio changes
+                                per second when scrubbing smoothly.
+                                Metric: Fraction change per second (float).
+
+LIGHT_TIME_RATE               : Rate at which normalized time-of-day advances
+                                per second when scrubbing manually.
+                                Metric: Fraction change per second (float).
+
+LIGHT_EXPOSURE_MIN            : Lower and upper safety limits for the neutral
+LIGHT_EXPOSURE_MAX              flat-ground brightness baseline in Mode 5.
+                                Metric: Fraction share [0.0 - 1.0] (float).
+
+LIGHT_EXPOSURE_RATE           : Rate at which neutral exposure changes per
+                                second when scrubbing smoothly.
+                                Metric: Fraction change per second (float).
+
+LIGHT_ORBIT_SCALES            : Tuple of selectable day/night orbit clock
+                                speed multipliers in Mode 5; 0.0 pauses the
+                                sun for manual studio lighting.
+                                Metric: Tuple of float multipliers (tuple).
 
 
 [CAMERA NAVIGATION SETTINGS]
 -------------------------------------------------------------------------------
-TEST_PAN_SPEED                : Camera flying speed across terrain in Modes 3
-                                and 4 when holding WASD keys. Scaled by frame
-                                delta time (dt) for uniform speed across PCs
-                                (mouse panning tracks cursor pixels 1:1).
+TEST_PAN_SPEED                : Camera flying speed across terrain in Modes 3,
+                                4, and 5 when holding WASD keys. Scaled by
+                                frame delta time (dt) for uniform speed across
+                                PCs (mouse panning tracks cursor pixels 1:1).
                                 Metric: Pixels per second (float).
 
 
 [ACTIVE PROFILE SELECTORS]
 -------------------------------------------------------------------------------
-ACTIVE_CHUNK_PROFILE          : Spatial chunk preset to load from
-                                profiles/chunk.yaml on startup (e.g. BALANCED).
+ACTIVE_CHUNK_PROFILE          : Spatial chunk preset key loaded from
+                                profiles/chunk.yaml on startup.
                                 Metric: Profile ID string (str).
 
-ACTIVE_WORLD_PROFILE          : Default noise-engine build to load from
-                                profiles/world.yaml on startup (e.g. SIMPLEX,
-                                PERLIN, PERFORMANT). Determines world seed,
-                                sub-sampling, and noise layer bindings.
+ACTIVE_WORLD_PROFILE          : Default noise-engine build key loaded from
+                                profiles/world.yaml on startup. Determines
+                                initial world seed and noise layer bindings.
+                                Metric: Profile ID string (str).
+
+ACTIVE_LIGHTING_PROFILE       : Default solar lighting preset key loaded from
+                                profiles/lighting.yaml on startup.
                                 Metric: Profile ID string (str).
 
 
 [INTERFACE COLORS & DIMENSIONS]
 -------------------------------------------------------------------------------
 COLOR_BG                      : Dark background color used to clear the canvas
-                                behind procedural chunks in Modes 3 and 4.
+                                behind procedural chunks in Modes 3, 4, and 5.
                                 Metric: RGB color tuple (int, int, int).
 
 COLOR_PANEL_DIVIDER           : Light grey color used to draw horizontal
@@ -385,41 +503,30 @@ COLOR_SILENCED_WAVE           : Muted grey color used to draw the flat zero
                                 Metric: RGB color tuple (int, int, int).
 
 COLOR_SELECTION               : High-contrast electric blue used for active
-                                panel selection frames, focused matrix table
-                                cells, and interactive HUD borders.
+                                panel selection frames, focused matrix/deck
+                                cells, footer highlight, and HUD borders.
                                 Metric: RGB color tuple (int, int, int).
-
-COLOR_TITLE                   : Crisp dark ink color used for 1D panel title
-                                headers.
-                                Metric: RGB color tuple (int, int, int).
-
-COLOR_MUTED_TITLE             : De-emphasized grey used for silenced panel titles.
-                                Metric: RGB color tuple (int, int, int).
-
-COLOR_TITLE_CARD              : Translucent white background drawn behind 1D
-                                oscilloscope panel title cards.
-                                Metric: RGBA color tuple (int, int, int, int).
 
 COLOR_HUD_CARD_2D             : Translucent dark slate background drawn behind
-                                HUD info cards across 2D viewports (Modes 2, 3,
-                                4), the parameter matrix deck, and the footer.
+                                1D panel title cards, HUD info cards, control
+                                decks, and the studio footer.
                                 Metric: RGBA color tuple (int, int, int, int).
 
-COLOR_HUD_TEXT_ACTIVE         : Bright amber-gold highlight color used for
-                                active mode headers, footer mode bar text, and
-                                primary status tags.
+COLOR_HUD_TEXT_ACTIVE         : Bright highlight color used for active mode
+                                headers, footer labels, and primary status tags.
                                 Metric: RGB color tuple (int, int, int).
 
 COLOR_HUD_TEXT_NORMAL         : Soft silver-white color used for readable body
-                                text inside HUD info cards and footer controls.
+                                text inside panel title cards, HUD info cards,
+                                and footer controls.
                                 Metric: RGB color tuple (int, int, int).
 
-COLOR_HUD_TEXT_MUTED          : De-emphasized slate grey used for silenced table
-                                cells (such as Relief on 2-layer formulas).
+COLOR_HUD_TEXT_MUTED          : De-emphasized slate grey used for silenced panel
+                                titles, silenced table cells, and separators.
                                 Metric: RGB color tuple (int, int, int).
 
-COLOR_INPUT_ACTIVE            : Bright cyan-blue glow color used for text and
-                                highlights when actively typing a seed value.
+COLOR_INPUT_ACTIVE            : Bright cyan-blue glow color used for active
+                                focused panel titles, text, and highlights.
                                 Metric: RGB color tuple (int, int, int).
 
 
@@ -437,9 +544,9 @@ PANEL_BOTTOM_MARGIN           : Clear space at the bottom of component panels
                                 (Panels 1, 2, 3) above the bottom dividing line.
                                 Metric: Pixels (int).
 
-PANEL_COMPOSITE_BOTTOM_MARGIN : Extra bottom margin allocated to Panel 4 (e.g.
-                                64 px) so its 0.00 baseline and fills stay
-                                cleanly above the two-line studio footer card.
+PANEL_COMPOSITE_BOTTOM_MARGIN : Extra bottom margin allocated to Panel 4 so its
+                                0.00 baseline and fills stay cleanly above the
+                                two-line studio footer card.
                                 Metric: Pixels (int).
 
 PANEL_TITLE_X                 : Top-left coordinate offsets docking panel
@@ -453,7 +560,7 @@ PANEL_TITLE_TEXT_Y              header text within its translucent card box.
 PANEL_DIVIDER_WIDTH           : Stroke thickness of horizontal panel borders.
                                 Metric: Pixels (int).
 
-PANEL_SELECTION_WIDTH         : Stroke thickness of the active blue selection box.
+PANEL_SELECTION_WIDTH         : Stroke thickness of active blue selection boxes.
                                 Metric: Pixels (int).
 
 COMPONENT_LINE_WIDTH          : Stroke thickness for individual component wave

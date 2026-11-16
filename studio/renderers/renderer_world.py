@@ -33,6 +33,7 @@ class RendererWorld(BaseChunkRenderer):
             net_bandwidth=state.net_bandwidth,
             tile_stepping_enabled=state.tile_stepping_enabled,
             tile_size=state.tile_size,
+            compute_gradients=state.compute_gradients,
         )
         self.provider.set_layer_offsets(
             state.world_base_offset_x,
@@ -67,6 +68,7 @@ class RendererWorld(BaseChunkRenderer):
         self._last_net_enabled: bool = state.net_enabled
         self._last_tile_size: int = state.tile_size
         self._last_tile_stepping: bool = state.tile_stepping_enabled
+        self._last_compute_gradients: bool = state.compute_gradients
 
     def render(self, state: StudioState, fps: float) -> None:
         """Syncs recipes, runs preview/refinement pipeline, and draws."""
@@ -102,6 +104,7 @@ class RendererWorld(BaseChunkRenderer):
         )
         net_changed = state.net_enabled != self._last_net_enabled
         palette_changed = pal_name != self._last_palette_name
+        grad_changed = state.compute_gradients != self._last_compute_gradients
 
         offsets_changed = (
             abs(state.world_base_offset_x - self._last_base_ox) > 1e-4
@@ -119,6 +122,13 @@ class RendererWorld(BaseChunkRenderer):
         if world_profile_changed:
             self._rebuild_provider(state, active_lut)
             return
+
+        if grad_changed:
+            self.provider.set_compute_gradients(state.compute_gradients)
+            self._last_compute_gradients = state.compute_gradients
+            if state.compute_gradients:
+                self._invalidate_preview()
+                self.chunk_manager.clear()
 
         if world_seed_changed:
             self.provider.sync_world_seed(
@@ -211,6 +221,7 @@ class RendererWorld(BaseChunkRenderer):
             net_bandwidth=state.net_bandwidth,
             tile_stepping_enabled=state.tile_stepping_enabled,
             tile_size=state.tile_size,
+            compute_gradients=state.compute_gradients,
         )
         self.provider.set_layer_offsets(
             state.world_base_offset_x,
@@ -228,6 +239,7 @@ class RendererWorld(BaseChunkRenderer):
         self._last_base_key = state.world_base_profile_key
         self._last_macro_key = state.world_macro_profile_key
         self._last_crust_key = state.world_crust_profile_key
+        self._last_compute_gradients = state.compute_gradients
         self._record_layer_snapshots(state)
 
     def _check_layer_changes(self, state: StudioState) -> Tuple[bool, bool]:
@@ -246,12 +258,21 @@ class RendererWorld(BaseChunkRenderer):
                 scale_only = False
                 continue
 
-            last_scale, last_oct, last_dec, last_lac, last_seed, last_type = snap
+            (
+                last_scale,
+                last_oct,
+                last_dec,
+                last_lac,
+                last_sub,
+                last_seed,
+                last_type,
+            ) = snap
             s_diff = abs(prof.scale - last_scale) > 1e-4
             p_diff = (
                 prof.octaves != last_oct
                 or abs(prof.decay - last_dec) > 1e-4
                 or abs(prof.lacunarity - last_lac) > 1e-4
+                or prof.sub_sample_factor != last_sub
                 or prof.seed != last_seed
                 or prof.noise_type != last_type
             )
@@ -273,6 +294,7 @@ class RendererWorld(BaseChunkRenderer):
                     prof.octaves,
                     prof.decay,
                     prof.lacunarity,
+                    prof.sub_sample_factor,
                     prof.seed,
                     prof.noise_type,
                 )
@@ -288,6 +310,11 @@ class RendererWorld(BaseChunkRenderer):
             else "OFF (Smooth)"
         )
         net_tag = "ACTIVE" if state.net_enabled else "OFF"
+        fallback_tag = (
+            f" [FALLBACK: {config.RESOLUTION_FALLBACK_DIVIDER}x]"
+            if state.fallback_latched
+            else ""
+        )
 
         hud_lines: List[Tuple[str, Tuple[int, int, int]]] = [
             (
@@ -307,7 +334,7 @@ class RendererWorld(BaseChunkRenderer):
             (
                 f"CHUNKS : {len(self.chunk_manager.chunks)} | "
                 f"POS: ({state.cam_x:.1f}, {state.cam_y:.1f}) | "
-                f"FPS: {fps:.1f}",
+                f"FPS: {fps:.1f}{fallback_tag}",
                 config.COLOR_HUD_TEXT_NORMAL,
             ),
         ]
