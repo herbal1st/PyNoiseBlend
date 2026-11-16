@@ -11,7 +11,10 @@ from world.lighting.ambient_palette import AmbientPaletteResolver
 from world.lighting.height_shadow_engine import VectorizedHeightShadowEngine
 from world.lighting.lighting_profile import LightingProfile
 from world.lighting.time_clock import DayNightClock
-from world.lighting.viewport_height_sampler import ViewportHeightSampler
+from world.lighting.viewport_height_sampler import (
+    FallbackGradientGrid,
+    ViewportHeightSampler,
+)
 
 
 class AtmosphereOverlayManager:
@@ -28,6 +31,8 @@ class AtmosphereOverlayManager:
         self._small_surface: Optional[pygame.Surface] = None
         self._scaled_surface: Optional[pygame.Surface] = None
         self._tile_scaled_surface: Optional[pygame.Surface] = None
+        self._fb_source_ref: Optional[NDArray[np.float32]] = None
+        self._fb_grid: Optional[FallbackGradientGrid] = None
 
     def set_profile(self, profile: LightingProfile) -> None:
         """Switches active lighting preset and resets the orbit clock."""
@@ -40,6 +45,11 @@ class AtmosphereOverlayManager:
     def update(self, dt: float) -> None:
         """Advances orbit clock by frame delta time in seconds."""
         self.clock.update(dt)
+
+    def clear_fallback_cache(self) -> None:
+        """Releases cached scrub gradient grid after chunk refinement."""
+        self._fb_source_ref = None
+        self._fb_grid = None
 
     def draw_overlay(
         self,
@@ -54,12 +64,21 @@ class AtmosphereOverlayManager:
         neutral_exposure: float,
         sub_sample_override: Optional[int] = None,
         tile_size: int = 0,
+        fallback_field: Optional[NDArray[np.float32]] = None,
+        fallback_origin: Tuple[float, float] = (0.0, 0.0),
+        fallback_step: float = 1.0,
     ) -> None:
         """Computes and blits the unified lightmap via BLEND_MULT."""
+        fallback = self._resolve_fallback_grid(
+            fallback_field, fallback_origin, fallback_step
+        )
         surf_w, surf_h = target_surface.get_size()
+
         if tile_size > 1:
             snapped_ox, snapped_oy, shift_x, shift_y = (
-                self._compute_tile_snap(focus_x, focus_y, surf_w, surf_h, tile_size)
+                self._compute_tile_snap(
+                    focus_x, focus_y, surf_w, surf_h, tile_size
+                )
             )
             gx, gy = self.sampler.sample_tile_gradients(
                 snapped_ox=snapped_ox,
@@ -68,6 +87,7 @@ class AtmosphereOverlayManager:
                 view_h=surf_h,
                 chunk_manager=chunk_manager,
                 tile_size=tile_size,
+                fallback=fallback,
             )
         else:
             shift_x, shift_y = 0, 0
@@ -89,6 +109,7 @@ class AtmosphereOverlayManager:
                 chunk_manager=chunk_manager,
                 target_w=target_w,
                 target_h=target_h,
+                fallback=fallback,
             )
 
         self._render_from_gradients(
@@ -118,15 +139,23 @@ class AtmosphereOverlayManager:
         tile_size: int = 0,
         focus_x: float = 0.0,
         focus_y: float = 0.0,
+        field_origin: Tuple[float, float] = (0.0, 0.0),
     ) -> None:
         """Computes and blits lightmap directly from a scrub heightfield."""
-        if field.shape[0] < 2 or field.shape[1] < 2:
+        gx_scaled, gy_scaled = self._compute_field_gradients(
+            field, step_scale
+        )
+        if gx_scaled is None or gy_scaled is None:
             return
 
-        gy, gx = np.gradient(field)
-        inv_step = np.float32(1.0 / max(1.0, float(step_scale)))
-        gx_scaled = (gx * inv_step).astype(np.float32)
-        gy_scaled = (gy * inv_step).astype(np.float32)
+        self._fb_source_ref = field
+        self._fb_grid = FallbackGradientGrid(
+            gx=gx_scaled,
+            gy=gy_scaled,
+            origin_x=field_origin[0],
+            origin_y=field_origin[1],
+            step_scale=float(max(1.0, step_scale)),
+        )
 
         shift_x, shift_y = 0, 0
         if tile_size > 1:
@@ -149,17 +178,35 @@ class AtmosphereOverlayManager:
             shift_y=shift_y,
         )
 
-    def draw_cached_overlay(self, target_surface: pygame.Surface) -> None:
-        """Reuses last scaled lightmap surface during chunk refinement."""
-        if self._scaled_surface is None:
-            return
-        if self._scaled_surface.get_size() != target_surface.get_size():
-            return
-        target_surface.blit(
-            self._scaled_surface,
-            (0, 0),
-            special_flags=pygame.BLEND_MULT,
+    def _resolve_fallback_grid(
+        self,
+        field: Optional[NDArray[np.float32]],
+        origin: Tuple[float, float],
+        step_scale: float,
+    ) -> Optional[FallbackGradientGrid]:
+        """Returns cached or newly computed gradient fallback for a field."""
+        if field is None:
+            self.clear_fallback_cache()
+            return None
+
+        if field is self._fb_source_ref and self._fb_grid is not None:
+            return self._fb_grid
+
+        gx_scaled, gy_scaled = self._compute_field_gradients(
+            field, step_scale
         )
+        if gx_scaled is None or gy_scaled is None:
+            return None
+
+        self._fb_source_ref = field
+        self._fb_grid = FallbackGradientGrid(
+            gx=gx_scaled,
+            gy=gy_scaled,
+            origin_x=origin[0],
+            origin_y=origin[1],
+            step_scale=float(max(1.0, step_scale)),
+        )
+        return self._fb_grid
 
     def _render_from_gradients(
         self,
@@ -255,6 +302,20 @@ class AtmosphereOverlayManager:
             (0, 0),
             special_flags=pygame.BLEND_MULT,
         )
+
+    @staticmethod
+    def _compute_field_gradients(
+        field: NDArray[np.float32],
+        step_scale: float,
+    ) -> Tuple[Optional[NDArray[np.float32]], Optional[NDArray[np.float32]]]:
+        """Computes world-scaled (gx, gy) gradients from a 2D heightfield."""
+        if field.shape[0] < 2 or field.shape[1] < 2:
+            return None, None
+        gy, gx = np.gradient(field)
+        inv_step = np.float32(1.0 / max(1.0, float(step_scale)))
+        gx_scaled = (gx * inv_step).astype(np.float32)
+        gy_scaled = (gy * inv_step).astype(np.float32)
+        return gx_scaled, gy_scaled
 
     @staticmethod
     def _compute_tile_snap(

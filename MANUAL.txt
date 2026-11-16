@@ -155,9 +155,10 @@ CRUST_START                   : Target starting height for the Continental Crust
 CYCLE_ZOOM_RATE               : Continuous percentage zoom rate for wave
                                 frequencies. When holding LEFT or RIGHT arrows
                                 (with SHIFT for one layer or unmodified for
-                                all), wave cycles multiply or divide smoothly
-                                per second while keeping Mode 2 linear waves
-                                anchored at the screen center.
+                                all), wave cycles divide or multiply smoothly
+                                per second (RIGHT zooms in to broader waves;
+                                LEFT zooms out to denser waves) while keeping
+                                Mode 2 linear waves anchored at screen center.
                                 Metric: Rate multiplier per second (float).
 
 BASE_MIN_CYCLES               : Lower and upper safety limits restricting Base
@@ -176,17 +177,18 @@ CRUST_MAX_CYCLES                Continental Crust tectonic cycle tuning.
 
 [NOISE SCALE TUNING RATES & CLAMPS]
 -------------------------------------------------------------------------------
-NOISE_SCALE_ZOOM_RATE         : How quickly terrain feature sizes tighten or
-                                widen when holding LEFT or RIGHT arrows in
-                                Modes 3, 4, and 5 (RIGHT zooms out to smaller,
-                                denser features; LEFT zooms in to larger ones,
-                                anchored at the screen center).
+NOISE_SCALE_ZOOM_RATE         : How quickly terrain feature sizes expand or
+                                tighten when holding LEFT or RIGHT arrows in
+                                Modes 3, 4, and 5 (RIGHT zooms in to larger,
+                                broader features; LEFT zooms out to smaller,
+                                denser ones, anchored at the screen center).
                                 Metric: Rate multiplier per second (float).
 
 MOUSE_ZOOM_SENSITIVITY        : Controls how quickly waves and terrain features
                                 zoom when dragging horizontally with the Right
-                                Mouse Button (RMB) across viewports, using
-                                smooth exponential scaling per pixel dragged.
+                                Mouse Button (RMB) across viewports (right
+                                zooms in; left zooms out), using smooth
+                                exponential scaling per pixel dragged.
                                 Metric: Zoom rate per pixel (float).
 
 NOISE_MIN_SCALE               : Smallest allowed noise feature width in pixels.
@@ -371,6 +373,12 @@ LIGHT_ROW_WORLD               : Solar Control Deck row index switching Mode 5
                                 world.yaml builds.
                                 Metric: Integer row index (int).
 
+LIGHT_ROW_SCALE               : Solar Control Deck row index (default focus on
+                                Mode 5 entry) exposing unified world feature
+                                scaling, zooming all active terrain layers
+                                together around the camera center.
+                                Metric: Integer row index (int).
+
 LIGHT_ROW_AZIMUTH             : Solar Control Deck row index controlling the
                                 sun's compass angle around the horizon in
                                 degrees [0.0 - 360.0).
@@ -403,12 +411,6 @@ LIGHT_ROW_EXPOSURE            : Solar Control Deck row index controlling the
                                 neutral brightness baseline for flat ground,
                                 giving sunlit slopes room to brighten above
                                 flat plains instead of clipping at midday.
-                                Metric: Integer row index (int).
-
-LIGHT_ROW_SCALE               : Solar Control Deck row index exposing unified
-                                world feature scaling in Mode 5, zooming all
-                                active terrain layers together around the
-                                camera center.
                                 Metric: Integer row index (int).
 
 LIGHT_MATRIX_ROW_COUNT        : Total number of rows in the Mode 5 Solar

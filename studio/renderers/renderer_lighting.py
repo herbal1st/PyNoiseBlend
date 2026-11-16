@@ -16,6 +16,7 @@ from world.lighting.atmosphere_overlay import AtmosphereOverlayManager
 _SOLAR_ROWS: Tuple[Tuple[int, str], ...] = (
     (config.LIGHT_ROW_PRESET, "PRESET    :"),
     (config.LIGHT_ROW_WORLD, "WORLD     :"),
+    (config.LIGHT_ROW_SCALE, "SCALE     :"),
     (config.LIGHT_ROW_AZIMUTH, "AZIMUTH   :"),
     (config.LIGHT_ROW_ALTITUDE, "ALTITUDE  :"),
     (config.LIGHT_ROW_CONTRAST, "CONTRAST  :"),
@@ -23,7 +24,6 @@ _SOLAR_ROWS: Tuple[Tuple[int, str], ...] = (
     (config.LIGHT_ROW_ORBIT_SPEED, "ORBIT SPD :"),
     (config.LIGHT_ROW_TIME, "TIME/DAY  :"),
     (config.LIGHT_ROW_EXPOSURE, "EXPOSURE  :"),
-    (config.LIGHT_ROW_SCALE, "SCALE     :"),
 )
 
 
@@ -88,7 +88,7 @@ class RendererLighting(BaseChunkRenderer):
         )
 
     def _draw_lighting_overlay(self, state: StudioState) -> None:
-        """Selects live, scrub-field, or cached lightmap overlay path."""
+        """Selects scrub-field or hybrid chunk-sampled lightmap path."""
         tile_sz = state.tile_size if state.tile_stepping_enabled else 0
 
         if state.is_scrubbing and self._last_scrub_field is not None:
@@ -109,20 +109,21 @@ class RendererLighting(BaseChunkRenderer):
                 tile_size=tile_sz,
                 focus_x=state.cam_x,
                 focus_y=state.cam_y,
+                field_origin=(
+                    self._preview_origin_x,
+                    self._preview_origin_y,
+                ),
             )
             return
-
-        if self._is_refining:
-            visible_ready = self.chunk_manager.are_visible_chunks_loaded(
-                state.cam_x, state.cam_y, float(self.width), float(self.height)
-            )
-            if not visible_ready:
-                self.atmosphere.draw_cached_overlay(self.screen)
-                return
 
         lm_override = (
             config.LIGHTMAP_FALLBACK_DIVIDER
             if state.fallback_latched
+            else None
+        )
+        fb_field = (
+            self._last_scrub_field
+            if (self._is_refining and self._last_scrub_field is not None)
             else None
         )
         self.atmosphere.draw_overlay(
@@ -137,6 +138,12 @@ class RendererLighting(BaseChunkRenderer):
             neutral_exposure=state.light_exposure,
             sub_sample_override=lm_override,
             tile_size=tile_sz,
+            fallback_field=fb_field,
+            fallback_origin=(
+                self._preview_origin_x,
+                self._preview_origin_y,
+            ),
+            fallback_step=self._preview_step_scale,
         )
 
     def _resolve_world_source(

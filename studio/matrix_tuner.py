@@ -248,7 +248,7 @@ def _scale_single_layer(
     """Scales feature scale while keeping view anchored on camera."""
     if state.active_mode == 3:
         old_s = state.active_noise_profile.scale
-        new_s = _clamp_scale(old_s / factor)
+        new_s = _clamp_scale(old_s * factor)
         if new_s != old_s:
             ratio = new_s / old_s
             state.active_noise_profile.scale = new_s
@@ -265,7 +265,7 @@ def _scale_single_layer(
         return
 
     old_s = prof.scale
-    new_s = _clamp_scale(old_s / factor)
+    new_s = _clamp_scale(old_s * factor)
     if new_s == old_s:
         return
 

@@ -107,6 +107,8 @@ class InputHandler:
             elif state.active_mode == 2:
                 state.cycle_formula_2d(direction)
                 self._clamp_focus_for_active_mode(state)
+            elif state.active_mode == 5:
+                state.cycle_light_world_source(direction)
         elif event.key == pygame.K_b:
             direction = -1 if shift_held else 1
             if state.active_mode == 3:

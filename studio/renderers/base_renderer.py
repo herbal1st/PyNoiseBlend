@@ -149,7 +149,13 @@ class BaseRenderer:
         extra_ctrl: str,
     ) -> str:
         """Formats context-sensitive control hints for the active mode."""
-        formula_str = "[TAB]: Formula | " if active_mode not in (3, 5) else ""
+        if active_mode == 5:
+            tab_str = "[TAB]: World | "
+        elif active_mode in (1, 2, 4):
+            tab_str = "[TAB]: Formula | "
+        else:
+            tab_str = ""
+
         build_str = (
             "[B]: Light | "
             if active_mode == 5
@@ -157,7 +163,7 @@ class BaseRenderer:
         )
         persp_str = "[P]: Persp | " if active_mode == 2 else ""
         base_ctrl = (
-            f"[1-5]: View | {formula_str}{build_str}"
+            f"[1-5]: View | {tab_str}{build_str}"
             f"[LMB/RMB/Arrows]: Nav/Zoom (+SHIFT: Layer) | "
             f"[SPACE]: Step | [C/I]: Palette | {persp_str}"
             f"[N]: Net | [R]: Reset"

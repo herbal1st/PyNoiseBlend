@@ -130,7 +130,8 @@ def _compute_scaled_cycle(
     factor: float,
 ) -> Tuple[float, float]:
     """Clamps scaled cycle frequency and returns (new_val, old_over_new)."""
-    new_val = max(min_val, min(max_val, old_val * factor))
+    safe_factor = max(1e-6, factor)
+    new_val = max(min_val, min(max_val, old_val / safe_factor))
     ratio = old_val / new_val if new_val != old_val else 1.0
     return new_val, ratio
 

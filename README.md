@@ -114,14 +114,15 @@ Key Architectural Pillars:
   coarser sub-sampled grid (without ever upscaling already-coarse profiles),
   steps Mode 5's lightmap down to a coarser fallback divider, and flags
   [FALLBACK: Nx] in the HUD.
-- Single-Pass 3D Solar Hillshading (world/lighting/): Mode 5 computes 3D
-  sunlight direction (compass azimuth + sun altitude), adjustable neutral
-  exposure (letting sunlit ridges brighten above flat plains without clipping),
-  and time-of-day sky tinting on a screen-relative lightmap grid sampled
-  directly from visible chunks via np.searchsorted, then scales and
-  multiplies it over the screen in one pygame.BLEND_MULT pass—allowing 60 FPS
-  sun orbits, live scrubbing hillshading, and crisp 1:1 tile-aligned shading
-  in Tile Mode with zero chunk re-baking.
+- Single-Pass 3D Solar Hillshading & Hybrid Gradient Sampling (world/lighting/):
+  Mode 5 computes 3D sunlight direction (compass azimuth + sun altitude),
+  adjustable neutral exposure (letting sunlit ridges brighten above flat
+  plains without clipping), and time-of-day sky tinting on a screen-relative
+  lightmap grid sampled directly from visible chunks via np.searchsorted, then
+  scales and multiplies it over the screen in one pygame.BLEND_MULT pass.
+  While chunks progressively rebuild after a scale change, unloaded chunk
+  areas blend seamlessly with world-anchored slopes from the scrub preview so
+  shadows never slip out of sync during camera panning or live sun orbits.
 
 
 [2.0 PROCEDURAL GENERATION & MATHEMATICAL WAVE SYNTHESIS]
@@ -336,7 +337,7 @@ To keep live zooming and parameter dragging fluid while preserving crisp
 static quality:
 - Active Scrubbing: Continuous tuning (Scale, Decay, Lacunarity) engages
   scrubbing mode and resets a short settle timer (SCRUB_SETTLE_DELAY). Plain
-  camera panning (WASD or unmodified Left-Drag in Modes 3–4) never triggers
+  camera panning (WASD or unmodified Left-Drag in Modes 3–5) never triggers
   scrubbing because cached chunks already pan at 60 FPS.
 - Discrete Single-Tap Decoupling: Discrete settings (Octaves, Profile,
   Sub-sampling, Seeds) advance strictly one step per key tap or click, forcing
@@ -345,14 +346,15 @@ static quality:
   (N + 1) scrub mesh. In color view, it colors the small grid first and lets
   SDL smoothscale stretch it; in Relief Net view, it draws crisp 1px isolines
   using coarse-cell culling.
-- Modes 3 & 4 Single-Pass Viewport Preview: Instead of rebuilding ~200 chunks
-  on every drag pixel, BaseChunkRenderer samples one compact screen-sized grid
-  via provider.sample_viewport_field() (skipping slope math).
+- Modes 3, 4 & 5 Single-Pass Viewport Preview: Instead of rebuilding ~200
+  chunks on every drag pixel, BaseChunkRenderer samples one compact
+  screen-sized grid via provider.sample_viewport_field() (skipping per-chunk
+  slope math) and records its world origin and sample spacing.
 - Instant Mouse Release & Seamless Progressive Settle: Releasing a mouse drag
   settles immediately (and keyboard tuning settles after SCRUB_SETTLE_DELAY).
-  Mode 2 snaps straight back to full detail; Modes 3 and 4 flush stale chunks,
-  keep the preview underneath as a camera-synced backdrop, and refill chunks
-  from the center outward at CHUNK_REFINE_BUDGET_PER_FRAME per frame.
+  Mode 2 snaps straight back to full detail; Modes 3, 4, and 5 flush stale
+  chunks, keep the preview underneath as a camera-synced backdrop, and refill
+  chunks from the center outward at CHUNK_REFINE_BUDGET_PER_FRAME per frame.
 
 Dynamic Resolution Fallback Latch (Wired Safety Net):
 To keep Modes 3, 4, and 5 responsive on low-power CPUs, TerrainStudioApp.run()
@@ -433,8 +435,8 @@ Shared Base & Chunk Renderers (studio/renderers/):
   per-frame alpha surface allocations), and the unified two-line studio dock.
 - BaseChunkRenderer (base_chunk_renderer.py): Extends BaseRenderer for Modes
   3, 4, and 5, managing coarse live previews, culled 1px isoline previews,
-  world-locked tile previews, progressive center-outward chunk refinement, and
-  cached scrub heightfields for live Mode 5 preview lighting.
+  world-locked tile previews, world-origin tracking for hybrid lighting, and
+  progressive center-outward chunk refinement.
 - Parameter Matrix Deck (parameter_matrix.py): Standalone UI renderer drawing
   the interactive multi-column parameter spreadsheet (also using a cached
   translucent backdrop) and registering cell and tab click hitboxes.
@@ -499,23 +501,27 @@ The 5 Studio Viewports (studio/renderers/):
 
 5. Mode 5: Solar Lighting Studio (renderer_lighting.py):
    - Inherits your live Mode 4 world (MODE 4 (LIVE)) by default—or lets you
-     compare the baseline world.yaml builds (SIMPLEX, PERLIN, PERFORMANT)—
-     using its own gradient-enabled ChunkManager (compute_gradients=True) so
-     Mode 4 continues to skip slope math when not in lighting view.
+     compare the baseline world.yaml builds (SIMPLEX, PERLIN, PERFORMANT)
+     directly via [TAB / SHIFT + TAB]—using its own gradient-enabled
+     ChunkManager (compute_gradients=True) so Mode 4 continues to skip slope
+     math when not in lighting view.
    - Evaluates hillshading on a crisp screen-relative lightmap divider
      (lightmap_sub_sample, dropping to LIGHTMAP_FALLBACK_DIVIDER only when
      the fallback latch engages). In Tile Mode ([SPACE]), switches to exact
      1:1 tile-centroid lighting with nearest-neighbor scaling so every tile is
      cleanly flat-shaded with zero stripes.
-   - During interactive Scale scrubbing, computes gradients directly from the
-     compact scrub preview heightfield and holds the cached lightmap while
-     chunks refine, preventing unlit holes.
-   - Solar Control Deck: Click, drag, or use arrow keys to tune Preset, World
-     source, Sun Azimuth (0-360 deg), Sun Altitude (0-90 deg), Hillshade
-     Contrast, Ambient Ratio, Orbit Speed (PAUSED to 4.0x), Time-of-Day,
-     Exposure (neutral flat-ground brightness baseline), and unified Scale
-     (scales all layers proportionally around camera center without leaving
-     your selected world preset).
+   - Hybrid Gradient Sampling During Refinement: While actively scrubbing
+     Scale, slopes are computed straight from the compact scrub preview
+     heightfield. Once you stop scaling and chunks progressively rebuild from
+     the center outward, ViewportHeightSampler fills loaded regions with crisp
+     chunk slopes and seamlessly pulls world-anchored scrub slopes for any
+     unloaded outer chunks—keeping shadows locked 1:1 while panning and
+     keeping sun orbits active.
+   - Solar Control Deck: Ordered as Preset, World source, unified Scale
+     (focused by default whenever switching to Mode 5), Sun Azimuth (0-360
+     deg), Sun Altitude (0-90 deg), Hillshade Contrast, Ambient Ratio, Orbit
+     Speed (PAUSED to 4.0x), Time-of-Day, and Exposure (neutral flat-ground
+     brightness baseline).
 
 
 [7.0 GLOBAL TILE STEPPING & COARSE CENTROID EVALUATION]
@@ -527,14 +533,14 @@ quantization ring across all five modes:
 Coarse Centroid Grid Evaluation (Up to 98% Less Math):
 Instead of evaluating every pixel and rounding afterward, tile mode evaluates
 waves or noise strictly at the center point of each tile block (for example,
-16 points per 128x128 chunk at 32px tiles instead of 16,384). In Mode 2 and
-Mode 3/4 scrubbing previews, the tiny tile array is colored directly and
+64 points per 128x128 chunk at 16px tiles instead of 16,384). In Mode 2 and
+Mode 3/4/5 scrubbing previews, the tiny tile array is colored directly and
 stretched in SDL via pygame.transform.scale(), keeping zooming and panning
 fluid.
 
 Global World-Space Tile Anchoring & Sub-Tile Halo Alignment:
-In streaming Modes 3 and 4, tile coordinates snap strictly to global multiples
-of tile_size:
+In streaming Modes 3, 4, and 5, tile coordinates snap strictly to global
+multiples of tile_size:
     snapped = (floor(world_coord / tile_size) + 0.5) * tile_size
 When chunks request a 1-pixel outer halo (such as wx - 1.0) for seamless edge
 contours, tiled grid evaluation aligns blocks to global tile boundaries and
@@ -561,11 +567,11 @@ The Multi-Kernel Evaluation Engine (core/contour_engine.py):
   across a 1-pixel world halo so tiled chunks draw seamless step outlines
   without gaps along chunk borders. Toggling Net or changing palettes while
   tile stepping is active triggers a fast halo-aware chunk refresh so boundary
-  contour lines remain unbroken across all tile sizes (8px, 16px, 32px).
+  contour lines remain unbroken across all tile sizes (4px, 8px, 16px).
 - Tiled Edge Preview Kernel (draw_tile_contour_edges_to_surface): Computes
   directional vertical and horizontal tile-crossing edges directly from compact
   grids via bake_tile_contour_edges and stamps them through one shared helper
-  for instant Mode 2 and Mode 3/4 scrubbing previews.
+  for instant Mode 2 and Mode 3/4/5 scrubbing previews.
 
 
 [9.0 FORMULA CATALOG & 2D PRESETS]
@@ -604,7 +610,10 @@ Mode 2 includes three isolated Solo geometry tracks plus the 12 composites:
 [10.0 CONTROLS & KEYBOARD / MOUSE SHORTCUTS]
 -------------------------------------------------------------------------------
 Universal Rule: Unmodified drags and zoom inputs affect ALL active layers
-together; holding [SHIFT] isolates ONLY the currently focused layer.
+together; holding [SHIFT] isolates ONLY the currently focused layer. Across
+all 5 modes, dragging Right with RMB or holding Right Arrow zooms IN (larger
+features), while dragging Left or holding Left Arrow zooms OUT (denser
+features). Left-drag panning and layer shifting stay unchanged.
 
 VIEWPORT & GENERAL NAVIGATION:
 -------------------------------------------------------------------------------
@@ -617,7 +626,8 @@ VIEWPORT & GENERAL NAVIGATION:
 
     TAB / SHIFT + TAB   : Cycle active mathematical formula forward / backward
                           (Modes 1, 2, and 4; automatically dims silenced
-                          layers in Mode 4 matrix).
+                          layers in Mode 4 matrix), or cycle active World
+                          source in Mode 5 (MODE 4 (LIVE) and world.yaml).
 
     B / SHIFT + B       : Cycle active YAML Build / Noise Profile (Modes 3
                           and 4) or Solar Lighting Preset (Mode 5).
@@ -628,7 +638,7 @@ VIEWPORT & GENERAL NAVIGATION:
     UP / DOWN           : Cycle active wave panel/channel focus (Modes 1 & 2)
                           or move parameter/solar deck row (Modes 3, 4, & 5).
 
-    SPACE / SHIFT+SPACE : Step tile size coarser / finer (OFF -> 8 -> 16 -> 32).
+    SPACE / SHIFT+SPACE : Step tile size coarser / finer (OFF -> 4 -> 8 -> 16).
 
     C / SHIFT + C       : Cycle active color palette forward / backward.
 
@@ -670,13 +680,14 @@ MATRIX DECK CONTROLS (MODES 3 & 4):
                           [ENTER] commits seed; [BACKSPACE] deletes;
                           [ESCAPE] cancels without changes.
 
-    RIGHT DRAG          : - On Scale: Zooms ALL active layers proportionally
-                            around camera center. (With [SHIFT]: zooms only the
-                            focused layer).
+    RIGHT DRAG          : - On Scale: Dragging Right zooms IN and Left zooms
+                            OUT across ALL active layers around camera center.
+                            (With [SHIFT]: zooms only the focused layer).
                           - On Persist / Lacunarity: Smooth continuous scrub.
 
     HOLD LEFT / RIGHT   : Keyboard mirror of Right-Drag:
-                          - On Scale / Persist / Lacunarity: Continuous scrub.
+                          - On Scale: Right zooms IN; Left zooms OUT.
+                          - On Persist / Lacunarity: Continuous scrub.
                           - (With [SHIFT] on Scale: zooms focused layer only).
 
     TAP LEFT / RIGHT    : On discrete rows (Profile, Octaves, Sub-sample, Seed):
@@ -689,22 +700,22 @@ MATRIX DECK CONTROLS (MODES 3 & 4):
 
 SOLAR CONTROL DECK CONTROLS (MODE 5):
 -------------------------------------------------------------------------------
-    UP / DOWN           : Move row focus across Preset, World, Azimuth,
-                          Altitude, Contrast, Ambient, Orbit Spd, Time/Day,
-                          Exposure, and Scale.
+    UP / DOWN           : Move row focus across Preset, World, Scale (default),
+                          Azimuth, Altitude, Contrast, Ambient, Orbit Spd,
+                          Time/Day, and Exposure.
 
     LEFT MOUSE CLICK    : - On Discrete Rows (Preset, World, Orbit Spd):
                             Steps forward (+1).
-                          - On Continuous Rows (Azimuth, Altitude, Contrast,
-                            Ambient, Time/Day, Exposure, Scale): Focuses row
+                          - On Continuous Rows (Scale, Azimuth, Altitude,
+                            Contrast, Ambient, Time/Day, Exposure): Focuses row
                             for dragging.
 
     RIGHT MOUSE CLICK   : On Discrete Rows: Steps backward (-1).
     (or SHIFT + LMB)
 
-    RIGHT DRAG /        : Smoothly scrubs Azimuth, Altitude, Contrast,
-    HOLD LEFT / RIGHT     Ambient Ratio, Time-of-Day, Exposure, or unified
-                          world Scale.
+    RIGHT DRAG /        : Smoothly zooms unified world Scale (Right = zoom in,
+    HOLD LEFT / RIGHT     Left = zoom out) or scrubs Azimuth, Altitude,
+                          Contrast, Ambient Ratio, Time-of-Day, or Exposure.
 
     TAP LEFT / RIGHT    : Steps discrete rows (Preset, World, Orbit Spd) by 1.
 
@@ -766,7 +777,7 @@ pynoiseblend/
 │   │   ├── height_shadow_engine.py # 3D solar dot-product & lightmap kernel
 │   │   ├── lighting_profile.py   # LightingProfile data model & YAML loader
 │   │   ├── time_clock.py         # Normalized orbit clock & pause controller
-│   │   └── viewport_height_sampler.py # Direct chunk gradient strider
+│   │   └── viewport_height_sampler.py # Direct chunk & fallback gradient strider
 │   │
 │   └── strata/                   # Continuous Strata Color Subsystem
 │       ├── strata_keyframe.py    # StrataKeyframe data model

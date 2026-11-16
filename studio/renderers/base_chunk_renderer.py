@@ -37,6 +37,9 @@ class BaseChunkRenderer(BaseRenderer):
         self._chunks_stale_from_scrub: bool = False
         self._preview_cam_x: float = 0.0
         self._preview_cam_y: float = 0.0
+        self._preview_origin_x: float = 0.0
+        self._preview_origin_y: float = 0.0
+        self._preview_step_scale: float = 1.0
 
     def _invalidate_preview(self) -> None:
         """Clears cached coarse preview and resets progressive state."""
@@ -44,6 +47,9 @@ class BaseChunkRenderer(BaseRenderer):
         self._is_refining = False
         self._chunks_stale_from_scrub = False
         self._last_scrub_field = None
+        self._preview_origin_x = 0.0
+        self._preview_origin_y = 0.0
+        self._preview_step_scale = 1.0
 
     def _mark_chunks_stale(self) -> None:
         """Flags cached chunks for progressive rebuild without scrub."""
@@ -106,7 +112,6 @@ class BaseChunkRenderer(BaseRenderer):
         _, active_lut = state.active_palette
 
         if state.tile_stepping_enabled:
-            self._last_scrub_field = None
             self._bake_tiled_preview(
                 state, provider, active_lut, origin_x, origin_y
             )
@@ -129,14 +134,18 @@ class BaseChunkRenderer(BaseRenderer):
         origin_y: float,
     ) -> None:
         """Samples (N+1) smooth coarse field and upscales onto preview."""
+        sub_factor = config.SCRUB_SUB_SAMPLE_FACTOR
         field = provider.sample_viewport_field(
             origin_x=origin_x,
             origin_y=origin_y,
             width=self.width,
             height=self.height,
-            sub_factor=config.SCRUB_SUB_SAMPLE_FACTOR,
+            sub_factor=sub_factor,
         )
         self._last_scrub_field = field
+        self._preview_origin_x = origin_x
+        self._preview_origin_y = origin_y
+        self._preview_step_scale = float(sub_factor)
 
         if state.net_enabled:
             draw_culled_contour_net_to_surface(
@@ -182,6 +191,9 @@ class BaseChunkRenderer(BaseRenderer):
             sub_factor=1,
         )
         self._last_scrub_field = field
+        self._preview_origin_x = snapped_ox + (0.5 * float(tile_sz))
+        self._preview_origin_y = snapped_oy + (0.5 * float(tile_sz))
+        self._preview_step_scale = float(tile_sz)
 
         h_dim, w_dim = field.shape
         full_w = w_dim * tile_sz

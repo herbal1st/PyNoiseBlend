@@ -80,7 +80,7 @@ class StudioState:
     fallback_latched: bool = False
     fallback_low_fps_timer: float = 0.0
 
-    selected_light_row: int = config.LIGHT_ROW_AZIMUTH
+    selected_light_row: int = config.LIGHT_ROW_SCALE
     light_azimuth_deg: float = 90.0
     light_altitude_deg: float = 10.0
     light_contrast: float = 135.0
@@ -440,6 +440,7 @@ class StudioState:
         self.light_world_source_index = (
             self.light_world_source_index + direction
         ) % total
+        self.mark_discrete_change()
 
     def reset_lighting_tuning(self) -> None:
         """Restores Mode 5 solar parameters from active lighting preset."""
@@ -468,11 +469,13 @@ class StudioState:
         factor: float,
     ) -> None:
         """Scales a Mode 5 world preset non-destructively around camera."""
-        old_ratio, off_x, off_y = self.get_light_preset_transform(preset_key)
+        old_ratio, off_x, off_y = self.get_light_preset_transform(
+            preset_key
+        )
         old_eff = base_scale * old_ratio
         new_eff = max(
             config.NOISE_MIN_SCALE,
-            min(config.NOISE_MAX_SCALE, old_eff / factor),
+            min(config.NOISE_MAX_SCALE, old_eff * factor),
         )
         if new_eff == old_eff:
             return
@@ -544,6 +547,8 @@ class StudioState:
         if mode in (3, 4):
             self.selected_matrix_row = config.ROW_SCALE
             self.selected_matrix_col = 0
+        elif mode == 5:
+            self.selected_light_row = config.LIGHT_ROW_SCALE
 
         if mode == 1 and self.preset_2d.composite_index < 0:
             self.composite_index = 0
