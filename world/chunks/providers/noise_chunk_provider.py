@@ -1,6 +1,5 @@
 """Chunk provider synthesizing isolated procedural noise for tools."""
 
-from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 import config
@@ -61,7 +60,6 @@ class NoiseChunkProvider(BaseChunkProvider):
         self,
         cx: int,
         cy: int,
-        sub_sample_override: Optional[int] = None,
     ) -> Chunk:
         """Samples continuous noise and bakes hardware SDL surface."""
         c_sz: int = self._chunk_profile.chunk_size
@@ -77,7 +75,6 @@ class NoiseChunkProvider(BaseChunkProvider):
                 width=pad_res,
                 height=pad_res,
                 tile_size=t_sz,
-                sub_sample_override=sub_sample_override,
             )
             field = np.ascontiguousarray(
                 field_padded[1 : c_sz + 1, 1 : c_sz + 1]
@@ -90,7 +87,6 @@ class NoiseChunkProvider(BaseChunkProvider):
                 width=c_sz,
                 height=c_sz,
                 tile_size=t_sz,
-                sub_sample_override=sub_sample_override,
             )
             field = np.ascontiguousarray(raw_field[:c_sz, :c_sz])
             rgb_buffer = self._render_field_to_rgb(field)

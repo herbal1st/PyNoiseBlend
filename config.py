@@ -61,47 +61,16 @@ DECAY_STEP_RATE: float = 0.50  # rate/sec
 LACUNARITY_MIN: float = 1.00  # multiplier
 LACUNARITY_MAX: float = 4.00  # multiplier
 LACUNARITY_STEP_RATE: float = 0.50  # rate/sec
-SUB_SAMPLE_FACTORS: Tuple[int, ...] = (1, 2, 4, 8)  # factors
-NOISE_TYPES: Tuple[str, ...] = ("SIMPLEX", "PERLIN", "VALUE")  # algorithms
-
-# ------ Parameter Matrix Row Indices ------
-ROW_PROFILE: int = 0  # index
-ROW_SCALE: int = 1  # index
-ROW_OCTAVES: int = 2  # index
-ROW_PERSIST: int = 3  # index
-ROW_LACUNARITY: int = 4  # index
-ROW_SUBSAMPLE: int = 5  # index
-ROW_SEED: int = 6  # index
-ROW_WORLD_SEED: int = 7  # index
-MATRIX_ROW_COUNT: int = 8  # rows
 
 # ------ Interactive Scrubbing Throttling ------
 SCRUB_SUB_SAMPLE_FACTOR: int = 4  # divider
 SCRUB_SETTLE_DELAY: float = 0.15  # seconds
 CHUNK_REFINE_BUDGET_PER_FRAME: int = 12  # chunks
 
-# ------ Dynamic Resolution Fallback Latch ------
-ENABLE_AUTO_RESOLUTION_FALLBACK: bool = True  # toggle
-RESOLUTION_FALLBACK_DIVIDER: int = 4  # divider
-LIGHTMAP_FALLBACK_DIVIDER: int = 8  # divider
-RESOLUTION_FALLBACK_FPS_THRESHOLD: int = 20  # hertz
-RESOLUTION_FALLBACK_TRIGGER_SECONDS: float = 2.0  # seconds
-
 # ------ Slope Gradient Deferral ------
 ENABLE_SLOPE_GRADIENTS: bool = False  # toggle
 
-# ------ Solar Lighting Studio Settings ------
-LIGHT_ROW_PRESET: int = 0  # index
-LIGHT_ROW_WORLD: int = 1  # index
-LIGHT_ROW_SCALE: int = 2  # index
-LIGHT_ROW_AZIMUTH: int = 3  # index
-LIGHT_ROW_ALTITUDE: int = 4  # index
-LIGHT_ROW_CONTRAST: int = 5  # index
-LIGHT_ROW_AMBIENT: int = 6  # index
-LIGHT_ROW_ORBIT_SPEED: int = 7  # index
-LIGHT_ROW_TIME: int = 8  # index
-LIGHT_ROW_EXPOSURE: int = 9  # index
-LIGHT_MATRIX_ROW_COUNT: int = 10  # rows
+# ------ Solar Lighting Studio Rates & Clamps ------
 LIGHT_AZIMUTH_RATE: float = 90.0  # deg/sec
 LIGHT_ALTITUDE_RATE: float = 45.0  # deg/sec
 LIGHT_CONTRAST_MIN: float = 10.0  # multiplier
@@ -112,7 +81,6 @@ LIGHT_TIME_RATE: float = 0.25  # rate/sec
 LIGHT_EXPOSURE_MIN: float = 0.50  # fraction
 LIGHT_EXPOSURE_MAX: float = 1.00  # fraction
 LIGHT_EXPOSURE_RATE: float = 0.25  # rate/sec
-LIGHT_ORBIT_SCALES: Tuple[float, ...] = (0.0, 0.5, 1.0, 2.0, 4.0)  # scales
 
 # ------ Camera Navigation Settings ------
 TEST_PAN_SPEED: float = 400.0  # px/sec
@@ -122,7 +90,7 @@ ACTIVE_CHUNK_PROFILE: str = "PERFORMANT"  # profile
 ACTIVE_WORLD_PROFILE: str = "SIMPLEX"  # profile
 ACTIVE_LIGHTING_PROFILE: str = "DEFAULT"  # profile
 
-# ------ Interface Colors & Dimensions ------
+# ------ Interface Colors ------
 COLOR_BG: Tuple[int, int, int] = (15, 15, 20)  # rgb
 COLOR_PANEL_DIVIDER: Tuple[int, int, int] = (200, 205, 215)  # rgb
 COLOR_GRID: Tuple[int, int, int] = (230, 233, 240)  # rgb
@@ -134,17 +102,3 @@ COLOR_HUD_TEXT_ACTIVE: Tuple[int, int, int] = (255, 220, 80)  # rgb
 COLOR_HUD_TEXT_NORMAL: Tuple[int, int, int] = (220, 220, 220)  # rgb
 COLOR_HUD_TEXT_MUTED: Tuple[int, int, int] = (130, 135, 145)  # rgb
 COLOR_INPUT_ACTIVE: Tuple[int, int, int] = (80, 200, 255)  # rgb
-
-# ------ Oscilloscope Metrics ------
-PANEL_COUNT: int = 4  # panels
-PANEL_TOP_MARGIN: int = 36  # pixels
-PANEL_BOTTOM_MARGIN: int = 14  # pixels
-PANEL_COMPOSITE_BOTTOM_MARGIN: int = 64  # pixels
-PANEL_TITLE_X: int = 20  # pixels
-PANEL_TITLE_Y: int = 4  # pixels
-PANEL_TITLE_TEXT_X: int = 8  # pixels
-PANEL_TITLE_TEXT_Y: int = 3  # pixels
-PANEL_DIVIDER_WIDTH: int = 1  # pixels
-PANEL_SELECTION_WIDTH: int = 2  # pixels
-COMPONENT_LINE_WIDTH: int = 2  # pixels
-COMPOSITE_LINE_WIDTH: int = 3  # pixels

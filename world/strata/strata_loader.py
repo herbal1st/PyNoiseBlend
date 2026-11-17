@@ -4,11 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from numpy.typing import NDArray
-
-try:
-    import yaml
-except ImportError:
-    yaml = None
+import yaml
 
 from utils.error_handler import fail_fast
 from world.strata.strata_keyframe import StrataKeyframe
@@ -31,9 +27,6 @@ class StrataLoader:
 
         if not cfg_path.exists():
             return profiles
-
-        if yaml is None:
-            fail_fast("PyYAML is not installed. Run: pip install pyyaml")
 
         with open(cfg_path, "r", encoding="utf-8") as f:
             data: Dict[str, Any] = yaml.safe_load(f) or {}

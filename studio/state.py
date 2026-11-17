@@ -10,12 +10,12 @@ from core.formulas import FORMULA_CATALOG, PRESETS_2D, FormulaPreset, Preset2D
 from utils.noise.noise_generator import NoiseGenerator, NoiseProfile
 from world.chunks.chunk_profile import ChunkProfile, ChunkProfileLoader
 from world.chunks.world_profile import WorldProfile, WorldProfileLoader
-from world.strata.strata_loader import StrataLoader
-from world.strata.strata_profile import StrataProfile
 from world.lighting.lighting_profile import (
     LightingProfile,
     LightingProfileLoader,
 )
+from world.strata.strata_loader import StrataLoader
+from world.strata.strata_profile import StrataProfile
 
 
 @dataclass(slots=True)
@@ -27,7 +27,7 @@ class StudioState:
     preset_index_2d: int = 3
     selected_panel_index: int = 0
 
-    selected_matrix_row: int = config.ROW_SCALE
+    selected_matrix_row: int = 1
     selected_matrix_col: int = 0
 
     base_cycles: float = config.DEFAULT_BASE_CYCLES
@@ -77,10 +77,8 @@ class StudioState:
     needs_refine_chunks: bool = False
     is_scrubbing: bool = False
     scrub_timer: float = 0.0
-    fallback_latched: bool = False
-    fallback_low_fps_timer: float = 0.0
 
-    selected_light_row: int = config.LIGHT_ROW_SCALE
+    selected_light_row: int = 2
     light_azimuth_deg: float = 90.0
     light_altitude_deg: float = 10.0
     light_contrast: float = 135.0
@@ -158,21 +156,6 @@ class StudioState:
             )
         self.reset_lighting_tuning()
 
-    # ------ Classification & Helper Static Methods ------
-
-    @staticmethod
-    def is_discrete_row(row: int) -> bool:
-        """Checks if a matrix row index represents a discrete parameter."""
-        return row in (
-            config.ROW_PROFILE,
-            config.ROW_OCTAVES,
-            config.ROW_SUBSAMPLE,
-            config.ROW_SEED,
-            config.ROW_WORLD_SEED,
-        )
-
-    # ------ Public Properties ------
-
     @property
     def formula(self) -> FormulaPreset:
         """Returns the active 1D composite formula preset."""
@@ -235,15 +218,6 @@ class StudioState:
         idx = (self.light_world_source_index - 1) % len(self.world_keys)
         return self.world_keys[idx]
 
-    @property
-    def active_sub_sample_override(self) -> Optional[int]:
-        """Returns fallback sub-sampling divider when latch is engaged."""
-        if not self.fallback_latched:
-            return None
-        return config.RESOLUTION_FALLBACK_DIVIDER
-
-    # ------ Layer Profile Lookups ------
-
     def get_layer_profile_key(self, col: int) -> Optional[str]:
         """Returns the noise profile key bound to given layer column."""
         if col == 0:
@@ -261,14 +235,12 @@ class StudioState:
             return self.working_noise_profiles[key]
         return None
 
-    # ------ Direct Seed Text Input Latch ------
-
     def start_seed_editing(self, row: int, col: int) -> None:
         """Enters text typing mode for the specified seed cell."""
         self.is_editing_seed = True
         self.editing_seed_coord = (row, col)
 
-        if row == config.ROW_WORLD_SEED:
+        if row == 7:
             self.seed_input_buffer = str(self.world_seed)
         else:
             prof = (
@@ -290,7 +262,7 @@ class StudioState:
             return
 
         row, col = self.editing_seed_coord
-        if row == config.ROW_WORLD_SEED:
+        if row == 7:
             self.world_seed = val
         else:
             prof = (
@@ -309,8 +281,6 @@ class StudioState:
         self.is_editing_seed = False
         self.seed_input_buffer = ""
         self.editing_seed_coord = (-1, -1)
-
-    # ------ Interactive State Triggers ------
 
     def mark_scrubbing(self) -> None:
         """Engages coarse scrubbing mode and resets the settle timer."""
@@ -343,30 +313,6 @@ class StudioState:
         self.scrub_timer -= dt
         if self.scrub_timer <= 0.0:
             self.settle_scrubbing()
-
-    def check_resolution_fallback(self, fps: float, dt: float) -> None:
-        """Monitors sustained low FPS and latches chunk downscaling."""
-        if not config.ENABLE_AUTO_RESOLUTION_FALLBACK:
-            return
-        if self.fallback_latched:
-            return
-        if self.active_mode not in (3, 4, 5) or fps <= 0.0:
-            self.fallback_low_fps_timer = 0.0
-            return
-
-        if fps < float(config.RESOLUTION_FALLBACK_FPS_THRESHOLD):
-            self.fallback_low_fps_timer += dt
-            if (
-                self.fallback_low_fps_timer
-                >= config.RESOLUTION_FALLBACK_TRIGGER_SECONDS
-            ):
-                self.fallback_latched = True
-                self.fallback_low_fps_timer = 0.0
-                self.needs_refine_chunks = True
-        else:
-            self.fallback_low_fps_timer = 0.0
-
-    # ------ Wave Reset & Catalog Navigation ------
 
     def reset_wave_channels(self, reset_all: bool) -> None:
         """Restores focused or all wave cycles and spatial offsets."""
@@ -545,10 +491,10 @@ class StudioState:
         self.cancel_seed_editing()
 
         if mode in (3, 4):
-            self.selected_matrix_row = config.ROW_SCALE
+            self.selected_matrix_row = 1
             self.selected_matrix_col = 0
         elif mode == 5:
-            self.selected_light_row = config.LIGHT_ROW_SCALE
+            self.selected_light_row = 2
 
         if mode == 1 and self.preset_2d.composite_index < 0:
             self.composite_index = 0

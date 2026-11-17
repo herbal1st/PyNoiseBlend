@@ -10,6 +10,19 @@ from core.wave_synthesizer import WaveFrame1D
 from studio.renderers.base_renderer import BaseRenderer
 from studio.state import StudioState
 
+_PANEL_COUNT: int = 4
+_PANEL_TOP_MARGIN: int = 36
+_PANEL_BOTTOM_MARGIN: int = 14
+_PANEL_COMPOSITE_BOTTOM_MARGIN: int = 64
+_PANEL_TITLE_X: int = 20
+_PANEL_TITLE_Y: int = 4
+_PANEL_TITLE_TEXT_X: int = 8
+_PANEL_TITLE_TEXT_Y: int = 3
+_PANEL_DIVIDER_WIDTH: int = 1
+_PANEL_SELECTION_WIDTH: int = 2
+_COMPONENT_LINE_WIDTH: int = 2
+_COMPOSITE_LINE_WIDTH: int = 3
+
 
 class Renderer1D(BaseRenderer):
     """Draws component waves and their composite result in four panels."""
@@ -53,7 +66,7 @@ class Renderer1D(BaseRenderer):
             panel_index=0,
             wave_data=frame.base,
             title=b_title,
-            line_width=config.COMPONENT_LINE_WIDTH,
+            line_width=_COMPONENT_LINE_WIDTH,
             is_selected=state.selected_panel_index == 0,
         )
 
@@ -81,7 +94,7 @@ class Renderer1D(BaseRenderer):
             panel_index=1,
             wave_data=r_data,
             title=r_title,
-            line_width=config.COMPONENT_LINE_WIDTH,
+            line_width=_COMPONENT_LINE_WIDTH,
             is_silenced=r_silenced,
             is_selected=r_selected,
         )
@@ -110,7 +123,7 @@ class Renderer1D(BaseRenderer):
             panel_index=2,
             wave_data=c_data,
             title=c_title,
-            line_width=config.COMPONENT_LINE_WIDTH,
+            line_width=_COMPONENT_LINE_WIDTH,
             is_silenced=c_silenced,
             is_selected=c_selected,
         )
@@ -132,9 +145,9 @@ class Renderer1D(BaseRenderer):
             panel_index=3,
             wave_data=frame.composite,
             title=p4_title,
-            line_width=config.COMPOSITE_LINE_WIDTH,
+            line_width=_COMPOSITE_LINE_WIDTH,
             is_selected=p4_selected,
-            margin_bottom=config.PANEL_COMPOSITE_BOTTOM_MARGIN,
+            margin_bottom=_PANEL_COMPOSITE_BOTTOM_MARGIN,
             fill_lut=fill_lut,
             line_lut=line_lut,
         )
@@ -152,16 +165,16 @@ class Renderer1D(BaseRenderer):
         line_width: int,
         is_silenced: bool = False,
         is_selected: bool = False,
-        margin_bottom: int = config.PANEL_BOTTOM_MARGIN,
+        margin_bottom: int = _PANEL_BOTTOM_MARGIN,
         fill_lut: Optional[NDArray[np.uint8]] = None,
         line_lut: Optional[NDArray[np.uint8]] = None,
     ) -> None:
         """Renders an oscilloscope panel with fill or colored line."""
-        panel_h = self.height // config.PANEL_COUNT
+        panel_h = self.height // _PANEL_COUNT
         y_top = panel_index * panel_h
         y_bottom = y_top + panel_h
         y_draw_min = y_bottom - margin_bottom
-        y_draw_max = y_top + config.PANEL_TOP_MARGIN
+        y_draw_max = y_top + _PANEL_TOP_MARGIN
         draw_h = float(y_draw_min - y_draw_max)
         int_draw_h = int(draw_h)
 
@@ -170,7 +183,7 @@ class Renderer1D(BaseRenderer):
             config.COLOR_PANEL_DIVIDER,
             (0, y_bottom),
             (self.width, y_bottom),
-            config.PANEL_DIVIDER_WIDTH,
+            _PANEL_DIVIDER_WIDTH,
         )
 
         grid_levels: List[Tuple[float, Tuple[int, int, int]]] = [
@@ -230,7 +243,7 @@ class Renderer1D(BaseRenderer):
                 self.cached_surface,
                 config.COLOR_SELECTION,
                 (1, y_top + 1, self.width - 2, panel_h - 2),
-                config.PANEL_SELECTION_WIDTH,
+                _PANEL_SELECTION_WIDTH,
             )
 
         title_color = (
@@ -250,12 +263,12 @@ class Renderer1D(BaseRenderer):
             box_w, box_h, config.COLOR_HUD_CARD_2D
         )
 
-        tx = config.PANEL_TITLE_X
-        ty = y_top + config.PANEL_TITLE_Y
+        tx = _PANEL_TITLE_X
+        ty = y_top + _PANEL_TITLE_Y
         self.cached_surface.blit(bg_card, (tx, ty))
         self.cached_surface.blit(
             title_surf,
-            (tx + config.PANEL_TITLE_TEXT_X, ty + config.PANEL_TITLE_TEXT_Y),
+            (tx + _PANEL_TITLE_TEXT_X, ty + _PANEL_TITLE_TEXT_Y),
         )
 
     def _render_vectorized_line(

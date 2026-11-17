@@ -1,87 +1,96 @@
 ```
- ____           __  __                              ____    ___                      __     
-/\  _`\        /\ \/\ \          __                /\  _`\ /\_ \                    /\ \    
-\ \ \L\ \__  __\ \ `\\ \    ___ /\_\    ____     __\ \ \L\ \//\ \      __    ___    \_\ \   
- \ \ ,__/\ \/\ \\ \ , ` \  / __`\/\ \  /',__\  /'__`\ \  _ <'\ \ \   /'__`\/' _ `\  /'_` \  
-  \ \ \/\ \ \_\ \\ \ \`\ \/\ \L\ \ \ \/\__, `\/\  __/\ \ \L\ \\_\ \_/\  __//\ \/\ \/\ \L\ \ 
-   \ \_\ \/`____ \\ \_\ \_\ \____/\ \_\/\____/\ \____\\ \____//\____\ \____\ \_\ \_\ \___,_\
-    \/_/  `/___/> \\/_/\/_/\/___/  \/_/\/___/  \/____/ \/___/ \/____/\/____/\/_/\/_/\/__,_ /
-             /\___/                                                                         
-             \/__/                                                                          
+ ____           __  __                         ____    ___                  __ 
+/\  _`\        /\ \/\ \          __           /\  _`\ /\_ \                /\ \
+\ \ \L\ \__  __\ \ `\\ \    ___ /\_\    ____  \ \ \L\ \//\ \    __   ___   \_\ \
+ \ \ ,__/\ \/\ \\ \ , ` \  / __`\/\ \  /',__\  \ \  _ <'\ \ \ /'__`\/' _ `\/'_` \
+  \ \ \/\ \ \_\ \\ \ \`\ \/\ \L\ \ \ \/\__, `\  \ \ \L\ \\_\ \/\  __//\ \/\ \L\ \
+   \ \_\ \/`____ \\ \_\ \_\ \____/\ \_\/\____/   \ \____//\____\ \____\ \_\ \___,_\
+    \/_/  `/___/> \\/_/\/_/\/___/  \/_/\/___/     \/___/ \/____/\/____/\/_/\/__,_ /
+             /\___/                                                            
+             \/__/                                                             
 ===============================================================================
                  PYNOISEBLEND - SYSTEM SPECIFICATIONS & GUIDE
 ===============================================================================
 
 [!] CROSS-REFERENCE NOTICE:
-    - For hardware constants, window settings, and YAML profile keys,
-      refer to MANUAL.txt.
-    - For unfulfilled milestone tasks and the active session handoff docket,
-      refer to ROADMAP.txt.
+    - For hardware constants, window settings, and tuning limits, refer
+      to MANUAL.txt.
+    - Recipes for spatial chunking, procedural noise, world builds, strata,
+      and lighting contain dedicated legends directly inside their respective
+      YAML files in profiles/.
 
 
 [1.0 SYSTEM OVERVIEW & ARCHITECTURAL PHILOSOPHY]
 -------------------------------------------------------------------------------
 Core Philosophy: Sovereign Compute, Matrix-Isolated, Zero-Dependency.
-Architecture   : PyNoiseBlend is an endless 2D terrain generator and interactive
-                 math studio built with vectorized NumPy array math and
-                 hardware-accelerated SDL graphics via Pygame-ce. It runs
-                 without heavyweight game engines or external C++ extensions.
+Architecture   : PyNoiseBlend is an endless 2D procedural terrain generator
+                 and interactive math studio built with vectorized NumPy array
+                 math and hardware-accelerated SDL graphics via Pygame-ce.
+                 It runs without heavyweight game engines or compiled C++
+                 extensions.
 
 The Paradigm Shift: From Square Grid Tiles to Continuous Heightfields
-In traditional 2D games, worlds are often built out of square sprite tiles like
-plastic building blocks (for example, 16x16 or 32x32 pixel squares). Creating
-natural coastlines or winding ridges requires complex corner-stamping rules and
-edge-transition art.
+In traditional 2D game development, maps are typically assembled from square
+sprite tiles like plastic building blocks (such as 16x16 or 32x32 pixel
+squares). Creating natural coastlines or winding mountain ridges requires
+complex corner-stamping rules and specialized edge-transition art.
 
 PyNoiseBlend treats terrain as a smooth, continuous elevation landscape where
 every individual pixel holds an exact height between 0.0 (deep ocean trenches)
 and 1.0 (highest mountain peaks):
                  h(x, y) in [0.0, 1.0]
 
-Think of it like moving from a world built out of toy bricks to a smooth,
+Think of it like moving from a world made of toy bricks to a smooth,
 infinitely zoomable topographical map. Every pixel on screen is an exact
-evaluation of procedural waves or noise, painted through smooth color gradient
-ramps and crisp elevation contour lines.
+evaluation of procedural mathematical waves or fractal noise, painted through
+smooth color gradient look-up tables and crisp elevation contour lines.
 
 Key Architectural Pillars:
-- Pre-Baked Raster Chunks: Instead of recalculating terrain every frame, the
-  world is divided into square patches called chunks (128x128 pixels). Each
-  chunk calculates its noise once, converts it into a display-ready image in
-  RAM, and stamps onto the screen effortlessly. When standing still or panning
-  across loaded terrain, procedural CPU math drops to zero.
-- Anchor-Locked Grid Snapping: Floating camera coordinates can cause neighboring
-  chunks to round to slightly different screen pixels, leaving thin 1-pixel
-  black cracks. The engine solves this by anchoring all visible chunks to one
-  rounded top-left corner and stamping outward in exact whole-pixel strides.
+- Pre-Baked Raster Chunks: Instead of recalculating procedural math every
+  frame, the world is divided into square patches called chunks (128x128
+  pixels). Each chunk calculates its noise once, converts it into a
+  display-ready image in RAM, and stamps onto the screen effortlessly. When
+  standing still or panning across loaded terrain, procedural CPU math drops
+  to absolute zero.
+- Anchor-Locked Grid Snapping: Floating-point camera coordinates can cause
+  neighboring chunks to round to slightly different screen pixels, creating
+  thin 1-pixel black cracks. The engine solves this by anchoring all visible
+  chunks to a single rounded top-left corner and stamping outward in exact
+  whole-pixel strides.
 - Agnostic ChunkProvider Architecture: Memory streaming (ChunkManager) is
-  completely separated from terrain math via the ChunkProvider contract and a
-  shared BaseChunkProvider—making it easy to swap worlds, raw noise, or new map
-  layers without touching the streaming engine.
+  completely decoupled from terrain math via the ChunkProvider contract and a
+  shared BaseChunkProvider—making it effortless to swap between raw noise,
+  composite multi-layer worlds, or custom gameplay layers.
 - Clean Controller Separation: Session data (StudioState), input event routing
   (InputHandler), wave math tuning (wave_tuner), matrix/world tuning
-  (matrix_tuner), and UI table drawing (parameter_matrix) each live in focused
-  modules rather than one monolithic file.
+  (matrix_tuner), and UI table drawing (parameter_matrix) each live in focused,
+  single-responsibility modules.
 - Engine-Wide Live Session State Machine: Adjustments made to a noise preset in
   Mode 3 modify active working copies in memory. Tuning a noise preset in
   Mode 3 immediately updates any world layer using that preset in Mode 4, while
-  your original YAML files on disk stay untouched.
+  your original YAML configuration files on disk remain pristine.
 - Interactive 2D Parameter Matrix Deck: Modes 3 and 4 include an on-screen
   spreadsheet-style control deck exposing all noise settings (Profile, Scale,
   Octaves, Decay, Lacunarity, Sub-sampling, and Seeds) for live tuning via
   mouse or keyboard.
+- Direct Per-Layer Sub-Sampling Independence: Base Detail, Relief Multiplier,
+  and Continental Crust each maintain 100% independent control over their
+  coarse sampling dividers (1x, 2x, 4x, 8x). What you select in the matrix is
+  exactly what evaluates—free of artificial global clamps or hidden floors.
 - Two-Tier Interactive Scrubbing & Progressive Refinement: While dragging
   sliders or zooming scales continuously, viewports switch temporarily to a
-  lightweight low-resolution preview grid for smooth 60 FPS feedback. Once you
-  stop adjusting, full detail snaps back in, rebuilding chunks smoothly from
+  lightweight low-resolution preview grid for fluid 60 FPS feedback. Once
+  tuning settles, full detail snaps back in, rebuilding chunks smoothly from
   the center of the screen outward under a strict per-frame budget.
 - Discrete Single-Tap Input Separation: Step-based settings (Octaves, Profile,
   Sub-sampling, Seeds) advance strictly once per key tap or mouse click,
-  preventing key-repeat floods from stalling the CPU.
-- Click-to-Type Seed Prompt: Clicking any seed cell (or pressing ENTER) opens
-  direct keyboard digit entry so you can type exact world seeds on the fly.
+  preventing key-repeat floods from bogging down the CPU.
+- Click-to-Type Seed Prompt: Clicking any seed cell (or pressing ENTER on it)
+  opens direct keyboard digit entry so you can type exact world seeds on the
+  fly.
 - Color-Before-Expand Surface Scaling: Coarse preview grids and tiled rasters
   are colored directly while small and stretched up by SDL hardware scaling,
-  avoiding millions of redundant per-pixel color writes.
+  avoiding millions of redundant per-pixel color lookups.
 - Mathematical Elevation Budgeting (Zero-Clipping Invariant): Total terrain
   height is strictly divided into additive and multiplicative shares so
   mountain peaks never flatten against a 1.0 ceiling, and inland valleys stay
@@ -90,10 +99,10 @@ Key Architectural Pillars:
   letting you balance organic flowing ridges against raw generation speed.
 - 1-Pixel Gradient Halo: Each chunk samples an invisible 1-pixel border ring
   around its edges before measuring slopes, guaranteeing smooth lighting and
-  contour continuity across chunk borders.
+  contour continuity across chunk borders with zero visible seams.
 - 1D Strata Color Look-Up Tables (LUTs): Color mapping is decoupled from math.
-  Chunks pass heights through precomputed 1,024-slot color strips (like a
-  fast paint-by-numbers index) in a single NumPy lookup (<0.1 ms).
+  Chunks pass heights through precomputed 1,024-slot color strips (like a fast
+  paint-by-numbers index) in a single vectorized NumPy lookup (<0.1 ms).
 - (N + 1) Fencepost Sub-Sampling: Evaluates coarse grids with one extra shared
   boundary point so neighboring chunks always agree on border heights across
   2x, 4x, and 8x downscaling dividers.
@@ -101,64 +110,57 @@ Key Architectural Pillars:
   ellipse with a safety buffer zone (hysteresis) so chunks do not flicker in
   and out of memory near edges, and corners never show gaps on widescreens.
 - Screen-Center Anchored Proportional Zoom: Zooming multiplies all active
-  layers together while mathematically shifting offsets so features stay pinned
-  to the center of your screen.
-- Frame-Rate Independent Delta Time: Camera flight speed, debounce timers, and
-  zoom rates scale by frame delta time (dt) for consistent feel across PCs.
+  layers together while mathematically shifting offsets so terrain features
+  stay pinned to the center of your screen.
 - Deferred Slope Gradients: In Mode 4, WorldChunkProvider skips slope-tilt
   math (np.gradient) and its extra 1-pixel border ring unless lighting or
-  tiled contour lines actually need them—reclaiming ~25–30% chunk bake speed.
-- Dynamic Resolution Fallback Latch: TerrainStudioApp monitors frame rates
-  in Modes 3, 4, and 5; if FPS stays below a safety threshold for a short
-  grace period, the engine automatically switches chunk generation to a
-  coarser sub-sampled grid (without ever upscaling already-coarse profiles),
-  steps Mode 5's lightmap down to a coarser fallback divider, and flags
-  [FALLBACK: Nx] in the HUD.
+  tiled contour lines actually require them—reclaiming ~25–30% chunk bake speed.
 - Single-Pass 3D Solar Hillshading & Hybrid Gradient Sampling (world/lighting/):
   Mode 5 computes 3D sunlight direction (compass azimuth + sun altitude),
   adjustable neutral exposure (letting sunlit ridges brighten above flat
-  plains without clipping), and time-of-day sky tinting on a screen-relative
-  lightmap grid sampled directly from visible chunks via np.searchsorted, then
-  scales and multiplies it over the screen in one pygame.BLEND_MULT pass.
-  While chunks progressively rebuild after a scale change, unloaded chunk
+  plains without bleaching), and time-of-day sky tinting on a screen-relative
+  lightmap grid sampled directly from visible chunks, then scales and multiplies
+  it over the screen in one single pygame.BLEND_MULT pass. Unloaded chunk
   areas blend seamlessly with world-anchored slopes from the scrub preview so
-  shadows never slip out of sync during camera panning or live sun orbits.
+  shadows never slip out of sync during panning or live sun orbits.
 
 
 [2.0 PROCEDURAL GENERATION & MATHEMATICAL WAVE SYNTHESIS]
 -------------------------------------------------------------------------------
 The Continuous Noise Surface:
-Mathematical 2D noise engines (utils/noise/) create smooth, repeatable random
-patterns—similar to natural rolling clouds or marble grain. Given any (x, y)
-coordinate and an integer seed, they return smooth values in [-1.0, 1.0] (which
-the studio shifts into [0.0, 1.0] for elevation mapping).
+Mathematical 2D noise engines (utils/noise/) generate smooth, repeatable
+pseudo-random patterns—similar to natural rolling clouds, marble grain, or
+mountain ridgelines. Given any continuous (x, y) coordinate and an integer
+seed, they return smooth values in [-1.0, 1.0] (which the engine normalizes
+into [0.0, 1.0] for elevation mapping).
 
 The Triple-Engine Procedural Suite:
 PyNoiseBlend provides three distinct noise algorithms so you can trade visual
-character for CPU speed:
+character for computational speed:
 
 1. Vectorized 2D Simplex Noise (utils/noise/simplex.py):
-   - Type    : Gradient Noise (directional slopes on a triangle grid).
-   - Visuals : Extremely organic, flowing, and free of boxy grid artifacts.
+   - Type    : Gradient Noise (directional slopes on a triangle lattice).
+   - Visuals : Extremely organic, flowing, and free of square grid artifacts.
    - Use Case: High-detail base terrain, craggy ridges, and rolling hills where
                natural visual flow matters most.
 
 2. Classical 2D Perlin Noise (utils/noise/perlin.py):
-   - Type    : Gradient Noise (directional slopes on a square grid).
+   - Type    : Gradient Noise (directional slopes on a square lattice).
    - Visuals : Classic smooth hills with balanced, gentle curvature.
    - Use Case: Traditional undulating landscapes and soft dune fields.
 
 3. Vectorized 2D Value Noise (utils/noise/value.py):
    - Type    : Scalar Lattice Noise (direct height blending between corners).
    - Visuals : Softer, pillowed landmasses and broad plateaus.
-   - Mechanism: Assigns heights directly to grid corners using fast bitwise
-               number scrambling (primes and XOR shifts), then blends smoothly.
-   - Speed Win: By skipping slope vector math and lookup tables, Value Noise
-               runs noticeably faster on low-power CPUs—ideal for broad
-               continent foundations and macro relief layers.
-   - Smooth Curve (C1 Continuity): Uses a 5th-degree S-curve
+   - Mechanism: Assigns random heights directly to grid corners using fast
+               bitwise number scrambling (primes and XOR shifts), then blends
+               smoothly.
+   - Speed Win: By skipping gradient vector dot products and trigonometric
+               tables, Value Noise runs noticeably faster on lower-power CPUs—
+               ideal for broad continent foundations and macro relief layers.
+   - Smooth Curve (C1 Continuity): Uses a 5th-degree Hermite polynomial curve
                u(t) = 6t^5 - 15t^4 + 10t^3 so slopes transition smoothly across
-               grid cells with zero faint creases.
+               grid cells with zero visible creases.
 
 Fractal Brownian Motion (FBM) Coordinator (NoiseGenerator):
 Layering multiple passes of noise (like adding fine rocky crags on top of big
@@ -167,8 +169,8 @@ hills) is handled in utils/noise/noise_generator.py:
                        and exposes sync_from_profile() so changes in the UI
                        reliably trigger seed and algorithm updates across both
                        Mode 3 and Mode 4 without cross-contaminating presets.
-- Scale (Wavelength) : Width of terrain features in pixels. Updated in place via
-                       set_scale() without rebuilding engine tables.
+- Scale (Wavelength) : Width of terrain features in pixels. Updated in place
+                       via set_scale() without rebuilding underlying tables.
 - Spatial Offsets    : Per-layer (x, y) shifts updated via set_offset(),
                        allowing hills, relief, and continents to slide
                        independently or stay pinned during zooms.
@@ -176,14 +178,15 @@ hills) is handled in utils/noise/noise_generator.py:
                        top of each other (clamped safely between 1 and 6).
 - Decay (Persistence): How quickly each finer detail pass shrinks in height
                        (clamped between 0.05 and 1.00).
-- Lacunarity         : How tightly each finer pass shrinks in width (clamped
-                       between 1.00 and 4.00).
+- Lacunarity         : How tightly each finer pass shrinks in wavelength
+                       (clamped between 1.00 and 4.00).
 - Seed & Noise Type  : Updatable live at runtime; automatically rebuilds the
-                       underlying permutation tables or hash seed.
+                       underlying permutation tables or hash seeds.
 - Sub-Sample Factor  : Coarse sampling divider (1x, 2x, 4x, 8x) using an
-                       (N + 1) fencepost grid, with optional upscaling. Tiled
-                       grid sampling aligns strictly to world tile multiples
-                       and slices by sub-tile offsets for seamless borders.
+                       (N + 1) fencepost grid with smooth bilinear upscaling.
+                       Tiled grid sampling aligns strictly to world tile
+                       multiples and slices by sub-tile offsets for seamless
+                       boundaries.
 
 Multi-Layer Terrain Math & Elevation Budgeting:
 In real geography, mountain ranges rise atop broad tectonic plates, while
@@ -229,7 +232,7 @@ and even rebind individual layer presets directly inside the parameter deck.
 [3.0 SPATIAL CHUNKING, ANCHOR SNAPPING & STREAMING HYSTERESIS]
 -------------------------------------------------------------------------------
 The Infinite World Dilemma:
-A mathematical noise function extends forever in every direction, while RAM
+A mathematical noise function extends infinitely in every direction, while RAM
 and displays are finite. The engine cannot pre-compute an entire planet at
 once, so it streams local patches on demand as the camera moves.
 
@@ -259,7 +262,7 @@ corner:
 Every visible chunk stamps relative to this anchor in exact whole-pixel
 strides, completely eliminating sub-pixel seams.
 
-The Agnostic Provider & Base Provider Architecture (world/chunks/):
+The Agnostic Provider Architecture (world/chunks/):
 ChunkManager is purely a spatial memory and coordinate streaming engine:
 - It has no knowledge of noise formulas, palettes, or biomes.
 - When a chunk coordinate enters the load zone, ChunkManager delegates
@@ -274,7 +277,7 @@ ChunkManager is purely a spatial memory and coordinate streaming engine:
 
 Center-Outward Progressive Chunk Refinement (world/chunks/chunk_manager.py):
 After live parameter edits end, rebuilding ~200 chunks in a single frame would
-stall low-power CPUs. ChunkManager supports a per-frame cap (max_new_chunks):
+stall CPU caches. ChunkManager supports a per-frame budget (max_new_chunks):
 - Missing chunks inside the load ellipse are sorted by distance from the camera
   center so the middle of the screen sharpens first and outer edges fill in
   smoothly over the next few frames.
@@ -302,14 +305,13 @@ offsets you dragged onto individual layers.
 
 [4.0 SUB-SAMPLING, FENCEPOST RESAMPLING & INTERACTIVE SCRUBBING]
 -------------------------------------------------------------------------------
-The Low-Spec Hardware Dilemma:
-Evaluating multi-octave Simplex noise for all 1,742,400 pixels of a 1760x990
-display on a low-power CPU would drop real-time interactivity to a crawl.
+The Computational Dilemma:
+Evaluating multi-octave procedural noise for all 1,742,400 pixels of a 1760x990
+display on an unaccelerated CPU would drop real-time interactivity to a crawl.
 
-The Per-Layer Sub-Sampling Solution (WorldChunkProvider):
-Controlled per noise layer (1x, 2x, 4x, 8x via profiles/noise.yaml or live in
-the Mode 3/4 matrix), with WorldProfile.sub_sample_factor and the Fallback
-Latch acting as a minimum floor so dividers never multiply together:
+Direct Per-Layer Sub-Sampling Independence:
+Sub-sampling is controlled completely and independently per noise layer (1x,
+2x, 4x, 8x via profiles/noise.yaml or live in the Mode 3/4 matrix deck):
 - At 1x (Native): Evaluates all 16,384 points per 128x128 chunk.
 - At 2x Downsampled: Evaluates 64x64 points (4,096 samples), cutting noise math
   by 75%.
@@ -318,6 +320,9 @@ Latch acting as a minimum floor so dividers never multiply together:
 - Smart Layer Transport: Fine local detail (Base) can run at 1x or 2x while
   broad macro layers (Relief at 4x, Crust at 8x) evaluate far fewer points and
   align cleanly onto the Base grid before the formula combines them.
+- No Artificial Clamps: Layer sampling is never artificially clamped by hidden
+  world floors or automated background latches. When you select 1x in the
+  matrix deck, the engine evaluates at true 1x native resolution.
 
 The (N + 1) Fencepost Rule:
 Dividing a span into N intervals requires N + 1 boundary points (just like a
@@ -356,23 +361,11 @@ static quality:
   chunks, keep the preview underneath as a camera-synced backdrop, and refill
   chunks from the center outward at CHUNK_REFINE_BUDGET_PER_FRAME per frame.
 
-Dynamic Resolution Fallback Latch (Wired Safety Net):
-To keep Modes 3, 4, and 5 responsive on low-power CPUs, TerrainStudioApp.run()
-checks live frame rates every tick via StudioState.check_resolution_fallback().
-If FPS stays below RESOLUTION_FALLBACK_FPS_THRESHOLD for
-RESOLUTION_FALLBACK_TRIGGER_SECONDS, the latch engages and routes
-RESOLUTION_FALLBACK_DIVIDER into ChunkManager.update_focus() via
-sub_sample_override, while Mode 5's lightmap steps down to
-LIGHTMAP_FALLBACK_DIVIDER. Both WorldChunkProvider and NoiseGenerator clamp
-with max(configured_factor, override) so already-coarse profiles never
-accidentally upscale. When active, the HUD appends a [FALLBACK: Nx] tag next
-to the FPS readout.
-
-Optional Slope Gradient Deferral (ENABLE_SLOPE_GRADIENTS):
-Mode 4 skips calculating slope-tilt arrays (gx, gy) and two extra
-bilinear_resample_2d() calls per chunk when ENABLE_SLOPE_GRADIENTS is False,
-reclaiming ~25–30% chunk bake speed during flat exploration. Mode 5 enables
-gradients on its own ChunkManager so hillshading stays independent.
+Stable True-Resolution Execution:
+The engine operates without unexpected background downscaling latches. When
+your computer experiences temporary background CPU load from multitasking,
+the engine preserves your loaded chunks rather than purging them, ensuring
+rock-solid visual consistency and predictable frame pacing.
 
 
 [5.0 CONTINUOUS STRATA PALETTES & 1D TRANSFER LUTS]
@@ -506,10 +499,9 @@ The 5 Studio Viewports (studio/renderers/):
      ChunkManager (compute_gradients=True) so Mode 4 continues to skip slope
      math when not in lighting view.
    - Evaluates hillshading on a crisp screen-relative lightmap divider
-     (lightmap_sub_sample, dropping to LIGHTMAP_FALLBACK_DIVIDER only when
-     the fallback latch engages). In Tile Mode ([SPACE]), switches to exact
-     1:1 tile-centroid lighting with nearest-neighbor scaling so every tile is
-     cleanly flat-shaded with zero stripes.
+     configured in profiles/lighting.yaml. In Tile Mode ([SPACE]), switches to
+     exact 1:1 tile-centroid lighting with nearest-neighbor scaling so every
+     tile is cleanly flat-shaded with zero stripes.
    - Hybrid Gradient Sampling During Refinement: While actively scrubbing
      Scale, slopes are computed straight from the compact scrub preview
      heightfield. Once you stop scaling and chunks progressively rebuild from
@@ -742,7 +734,7 @@ However, future world layers will spawn impassable procedural objects:
 
 pynoiseblend/
 │
-├── config.py                     # Hardware, display, zoom, clamps & row indices
+├── config.py                     # Hardware, display, rates, clamps & colors
 ├── main.py                       # Root entry point; boots studio.app.run_app()
 ├── README.md                     # Master architecture & technical specification
 ├── MANUAL.txt                    # Configuration manual & field guide
@@ -752,7 +744,7 @@ pynoiseblend/
 │   ├── lighting.yaml             # Solar lighting & day/night presets
 │   ├── noise.yaml                # Raw noise presets (Simplex, Perlin, Value)
 │   ├── strata.yaml               # Biome color ramps & terrain speed modifiers
-│   └── world.yaml                # Noise-engine builds (seed, sub-sample, layers)
+│   └── world.yaml                # World builds (seed & noise layer bindings)
 │
 ├── core/                         # Mathematical & Procedural Kernel (Pure NumPy)
 │   ├── contour_engine.py         # Shared culled, in-place & tile isoline kernel

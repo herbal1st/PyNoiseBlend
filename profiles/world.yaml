@@ -2,21 +2,18 @@ profiles:
 
   SIMPLEX:
     world_seed: 101
-    sub_sample_factor: 2
     base_noise_profile: "MICRO_SIMPLEX"
     macro_noise_profile: "MID_SIMPLEX"
     crust_noise_profile: "MACRO_SIMPLEX"
 
   PERLIN:
     world_seed: 202
-    sub_sample_factor: 2
     base_noise_profile: "MICRO_PERLIN"
     macro_noise_profile: "MID_PERLIN"
     crust_noise_profile: "MACRO_PERLIN"
 
   PERFORMANT:
     world_seed: 303
-    sub_sample_factor: 4
     base_noise_profile: "MICRO_VALUE"
     macro_noise_profile: "MID_VALUE"
     crust_noise_profile: "MACRO_VALUE"
@@ -27,7 +24,6 @@ profiles:
 # ============================================================================
 #
 # world_seed:           Master randomization seed offset for the planet.
-# sub_sample_factor:    Noise downsampling divider [1 = native, 2 = 2x].
 # base_noise_profile:   Reference key to base elevation preset in noise.yaml.
 # macro_noise_profile:  Reference key to macro amplitude modifier in noise.yaml.
 # crust_noise_profile:  Reference key to crust tectonic floor in noise.yaml.

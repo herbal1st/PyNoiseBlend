@@ -13,17 +13,31 @@ from world.chunks.providers.world_chunk_provider import WorldChunkProvider
 from world.chunks.world_profile import WorldProfile
 from world.lighting.atmosphere_overlay import AtmosphereOverlayManager
 
+LIGHT_ROW_PRESET: int = 0
+LIGHT_ROW_WORLD: int = 1
+LIGHT_ROW_SCALE: int = 2
+LIGHT_ROW_AZIMUTH: int = 3
+LIGHT_ROW_ALTITUDE: int = 4
+LIGHT_ROW_CONTRAST: int = 5
+LIGHT_ROW_AMBIENT: int = 6
+LIGHT_ROW_ORBIT_SPEED: int = 7
+LIGHT_ROW_TIME: int = 8
+LIGHT_ROW_EXPOSURE: int = 9
+LIGHT_MATRIX_ROW_COUNT: int = 10
+
+LIGHT_ORBIT_SCALES: Tuple[float, ...] = (0.0, 0.5, 1.0, 2.0, 4.0)
+
 _SOLAR_ROWS: Tuple[Tuple[int, str], ...] = (
-    (config.LIGHT_ROW_PRESET, "PRESET    :"),
-    (config.LIGHT_ROW_WORLD, "WORLD     :"),
-    (config.LIGHT_ROW_SCALE, "SCALE     :"),
-    (config.LIGHT_ROW_AZIMUTH, "AZIMUTH   :"),
-    (config.LIGHT_ROW_ALTITUDE, "ALTITUDE  :"),
-    (config.LIGHT_ROW_CONTRAST, "CONTRAST  :"),
-    (config.LIGHT_ROW_AMBIENT, "AMBIENT   :"),
-    (config.LIGHT_ROW_ORBIT_SPEED, "ORBIT SPD :"),
-    (config.LIGHT_ROW_TIME, "TIME/DAY  :"),
-    (config.LIGHT_ROW_EXPOSURE, "EXPOSURE  :"),
+    (LIGHT_ROW_PRESET, "PRESET    :"),
+    (LIGHT_ROW_WORLD, "WORLD     :"),
+    (LIGHT_ROW_SCALE, "SCALE     :"),
+    (LIGHT_ROW_AZIMUTH, "AZIMUTH   :"),
+    (LIGHT_ROW_ALTITUDE, "ALTITUDE  :"),
+    (LIGHT_ROW_CONTRAST, "CONTRAST  :"),
+    (LIGHT_ROW_AMBIENT, "AMBIENT   :"),
+    (LIGHT_ROW_ORBIT_SPEED, "ORBIT SPD :"),
+    (LIGHT_ROW_TIME, "TIME/DAY  :"),
+    (LIGHT_ROW_EXPOSURE, "EXPOSURE  :"),
 )
 
 
@@ -116,11 +130,6 @@ class RendererLighting(BaseChunkRenderer):
             )
             return
 
-        lm_override = (
-            config.LIGHTMAP_FALLBACK_DIVIDER
-            if state.fallback_latched
-            else None
-        )
         fb_field = (
             self._last_scrub_field
             if (self._is_refining and self._last_scrub_field is not None)
@@ -136,7 +145,6 @@ class RendererLighting(BaseChunkRenderer):
             steepness=state.light_contrast,
             ambient_ratio=state.light_ambient_ratio,
             neutral_exposure=state.light_exposure,
-            sub_sample_override=lm_override,
             tile_size=tile_sz,
             fallback_field=fb_field,
             fallback_origin=(
@@ -334,7 +342,7 @@ class RendererLighting(BaseChunkRenderer):
             self.chunk_manager.rebake_all_surfaces(active_lut)
 
     def _draw_hud(self, state: StudioState, fps: float) -> None:
-        """Renders lighting metadata card and interactive Solar Control Deck."""
+        """Renders lighting metadata card and Solar Control Deck."""
         lp = state.active_lighting_profile
         pal_name, _ = state.active_palette
 
@@ -344,11 +352,6 @@ class RendererLighting(BaseChunkRenderer):
             else "OFF (Smooth)"
         )
         net_tag = "ACTIVE" if state.net_enabled else "OFF"
-        fallback_tag = (
-            f" [FALLBACK: {config.RESOLUTION_FALLBACK_DIVIDER}x]"
-            if state.fallback_latched
-            else ""
-        )
 
         hud_lines: List[Tuple[str, Tuple[int, int, int]]] = [
             (
@@ -368,7 +371,7 @@ class RendererLighting(BaseChunkRenderer):
             ),
             (
                 f"CHUNKS : {len(self.chunk_manager.chunks)} | "
-                f"FPS: {fps:.1f}{fallback_tag}",
+                f"FPS: {fps:.1f}",
                 config.COLOR_HUD_TEXT_NORMAL,
             ),
         ]
@@ -404,7 +407,7 @@ class RendererLighting(BaseChunkRenderer):
             self.screen,
             config.COLOR_SELECTION,
             (x, y, box_w, box_h),
-            config.PANEL_SELECTION_WIDTH,
+            2,
         )
 
         hdr_surf = self.font.render(
@@ -430,7 +433,7 @@ class RendererLighting(BaseChunkRenderer):
                     self.screen,
                     config.COLOR_SELECTION,
                     cell_rect,
-                    config.PANEL_SELECTION_WIDTH,
+                    2,
                 )
 
             val_str = self._format_solar_value(state, row_id)
@@ -444,27 +447,27 @@ class RendererLighting(BaseChunkRenderer):
 
     def _format_solar_value(self, state: StudioState, row_id: int) -> str:
         """Formats display string for each Solar Control Deck row."""
-        if row_id == config.LIGHT_ROW_PRESET:
+        if row_id == LIGHT_ROW_PRESET:
             return f"[ {state.active_lighting_profile.profile_name} ]"
-        if row_id == config.LIGHT_ROW_WORLD:
+        if row_id == LIGHT_ROW_WORLD:
             return f"[ {state.active_light_world_label} ]"
-        if row_id == config.LIGHT_ROW_AZIMUTH:
+        if row_id == LIGHT_ROW_AZIMUTH:
             return f"[ {state.light_azimuth_deg:.1f} deg ]"
-        if row_id == config.LIGHT_ROW_ALTITUDE:
+        if row_id == LIGHT_ROW_ALTITUDE:
             return f"[ {state.light_altitude_deg:.1f} deg ]"
-        if row_id == config.LIGHT_ROW_CONTRAST:
+        if row_id == LIGHT_ROW_CONTRAST:
             return f"[ {state.light_contrast:.1f} ]"
-        if row_id == config.LIGHT_ROW_AMBIENT:
+        if row_id == LIGHT_ROW_AMBIENT:
             return f"[ {state.light_ambient_ratio:.2f} ]"
-        if row_id == config.LIGHT_ROW_ORBIT_SPEED:
+        if row_id == LIGHT_ROW_ORBIT_SPEED:
             if state.light_orbit_scale <= 0.0:
                 return "[ PAUSED ]"
             return f"[ {state.light_orbit_scale:.1f}x ]"
-        if row_id == config.LIGHT_ROW_TIME:
+        if row_id == LIGHT_ROW_TIME:
             return f"[ {state.light_time_ratio:.2f} ]"
-        if row_id == config.LIGHT_ROW_EXPOSURE:
+        if row_id == LIGHT_ROW_EXPOSURE:
             return f"[ {state.light_exposure:.2f} ]"
-        if row_id == config.LIGHT_ROW_SCALE:
+        if row_id == LIGHT_ROW_SCALE:
             _, _, profiles, b_k, _, _, _, zoom_r = self._resolve_world_source(
                 state
             )

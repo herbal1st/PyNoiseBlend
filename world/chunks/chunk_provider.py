@@ -1,7 +1,6 @@
 """Abstract base specification defining the chunk provider contract."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 
@@ -28,7 +27,6 @@ class ChunkProvider(ABC):
         self,
         cx: int,
         cy: int,
-        sub_sample_override: Optional[int] = None,
     ) -> Chunk:
         """Generates and bakes a Chunk container for grid coordinates."""
         pass

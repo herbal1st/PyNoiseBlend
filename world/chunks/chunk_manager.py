@@ -55,7 +55,6 @@ class ChunkManager:
         view_w: float,
         view_h: float,
         max_new_chunks: Optional[int] = None,
-        sub_sample_override: Optional[int] = None,
     ) -> int:
         """Streams chunks center-outward and purges distant entries."""
         c_sz: float = float(self.chunk_size)
@@ -112,9 +111,7 @@ class ChunkManager:
             to_generate = missing
 
         for _, tcx, tcy in to_generate:
-            chunk = self.provider.generate_chunk(
-                tcx, tcy, sub_sample_override=sub_sample_override
-            )
+            chunk = self.provider.generate_chunk(tcx, tcy)
             self.chunks[(tcx, tcy)] = chunk
 
         for coord_key in list(self.chunks.keys()):

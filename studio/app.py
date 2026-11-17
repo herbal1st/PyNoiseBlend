@@ -88,9 +88,6 @@ class TerrainStudioApp:
                     break
 
                 self.state.tick_timers(dt)
-                self.state.check_resolution_fallback(
-                    self.clock.get_fps(), dt
-                )
                 if self.state.active_mode == 5:
                     self.renderer_lighting.update(self.state, dt)
                 self._render_active_mode()

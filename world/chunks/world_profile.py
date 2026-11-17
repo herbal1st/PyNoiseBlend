@@ -3,11 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
-
-try:
-    import yaml
-except ImportError:
-    yaml = None
+import yaml
 
 from utils.error_handler import fail_fast
 
@@ -18,7 +14,6 @@ class WorldProfile:
 
     profile_name: str
     world_seed: int
-    sub_sample_factor: int
     base_noise_profile: str
     macro_noise_profile: str
     crust_noise_profile: str
@@ -39,9 +34,6 @@ class WorldProfileLoader:
         if not cfg_path.exists():
             fail_fast(f"World profile file missing: {cfg_path}")
 
-        if yaml is None:
-            fail_fast("PyYAML is not installed. Run: pip install pyyaml")
-
         with open(cfg_path, "r", encoding="utf-8") as f:
             data: Dict[str, Any] = yaml.safe_load(f) or {}
 
@@ -52,7 +44,6 @@ class WorldProfileLoader:
             profiles[p_name] = WorldProfile(
                 profile_name=p_name,
                 world_seed=int(p_data.get("world_seed", 420)),
-                sub_sample_factor=int(p_data.get("sub_sample_factor", 1)),
                 base_noise_profile=str(
                     p_data.get("base_noise_profile", "MICRO_SIMPLEX")
                 ),

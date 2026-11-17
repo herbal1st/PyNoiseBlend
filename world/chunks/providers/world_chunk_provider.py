@@ -172,13 +172,11 @@ class WorldChunkProvider(BaseChunkProvider):
         self,
         cx: int,
         cy: int,
-        sub_sample_override: Optional[int] = None,
     ) -> Chunk:
         """Generates elevation, optional gradients, and bakes surface."""
         chunk_sz = self._chunk_profile.chunk_size
         t_sz = self.tile_size if self.tile_stepping_enabled else 0
-        world_floor = self._get_world_floor(sub_sample_override)
-        sub_factor = self._resolve_sub_sample(world_floor)
+        sub_factor = self._resolve_sub_sample()
 
         wx_origin = float(cx * chunk_sz)
         wy_origin = float(cy * chunk_sz)
@@ -206,7 +204,7 @@ class WorldChunkProvider(BaseChunkProvider):
 
         if needs_halo:
             h_padded = self._sample_padded_elevation(
-                wx_origin, wy_origin, chunk_sz, sub_factor, world_floor, t_sz
+                wx_origin, wy_origin, chunk_sz, sub_factor, t_sz
             )
             if self.compute_gradients:
                 h, gx_out, gy_out = self._extract_elevation_and_gradients(
@@ -225,7 +223,7 @@ class WorldChunkProvider(BaseChunkProvider):
                 rgb_buffer = self._render_field_to_rgb(h)
         else:
             h = self._sample_unpadded_elevation(
-                wx_origin, wy_origin, chunk_sz, sub_factor, world_floor, t_sz
+                wx_origin, wy_origin, chunk_sz, sub_factor, t_sz
             )
             rgb_buffer = self._render_field_to_rgb(h)
 
@@ -273,29 +271,15 @@ class WorldChunkProvider(BaseChunkProvider):
             upscale=False,
         )
 
-    def _get_world_floor(
-        self,
-        sub_sample_override: Optional[int],
-    ) -> int:
-        """Computes world and fallback sub-sampling floor divider."""
-        base_floor = max(1, self.world_profile.sub_sample_factor)
-        if sub_sample_override is not None:
-            return max(base_floor, sub_sample_override)
-        return base_floor
-
-    def _resolve_sub_sample(self, world_floor: int) -> int:
+    def _resolve_sub_sample(self) -> int:
         """Determines finest active layer divider for composite grid."""
         if self.tile_stepping_enabled:
             return 1
-        active = [max(world_floor, self.base_noise.profile.sub_sample_factor)]
+        active = [self.base_noise.profile.sub_sample_factor]
         if self.formula.uses_relief and self.macro_noise is not None:
-            active.append(
-                max(world_floor, self.macro_noise.profile.sub_sample_factor)
-            )
+            active.append(self.macro_noise.profile.sub_sample_factor)
         if self.formula.uses_crust and self.crust_noise is not None:
-            active.append(
-                max(world_floor, self.crust_noise.profile.sub_sample_factor)
-            )
+            active.append(self.crust_noise.profile.sub_sample_factor)
         return max(1, min(active))
 
     def _generate_tiled_chunk_data(
@@ -369,7 +353,6 @@ class WorldChunkProvider(BaseChunkProvider):
         wy_origin: float,
         chunk_sz: int,
         sub_factor: int,
-        world_floor: int,
         tile_size: int,
     ) -> NDArray[np.float32]:
         """Samples composite heightfield including 1-sample gradient halo."""
@@ -386,7 +369,6 @@ class WorldChunkProvider(BaseChunkProvider):
             height=pad_res,
             step=step,
             tile_size=tile_size,
-            world_floor=world_floor,
             composite_sub=sub_factor,
         )
 
@@ -396,7 +378,6 @@ class WorldChunkProvider(BaseChunkProvider):
         wy_origin: float,
         chunk_sz: int,
         sub_factor: int,
-        world_floor: int,
         tile_size: int,
     ) -> NDArray[np.float32]:
         """Samples composite heightfield without a 1-sample border halo."""
@@ -409,7 +390,6 @@ class WorldChunkProvider(BaseChunkProvider):
                 height=eval_res,
                 step=float(sub_factor),
                 tile_size=0,
-                world_floor=world_floor,
                 composite_sub=sub_factor,
             )
             return bilinear_resample_2d(h_coarse, chunk_sz, chunk_sz)
@@ -421,7 +401,6 @@ class WorldChunkProvider(BaseChunkProvider):
             height=chunk_sz,
             step=1.0,
             tile_size=tile_size,
-            world_floor=world_floor,
             composite_sub=1,
         )
         return np.ascontiguousarray(h_native)
@@ -479,7 +458,6 @@ class WorldChunkProvider(BaseChunkProvider):
         step: float,
         tile_size: int = 0,
         upscale: bool = True,
-        world_floor: int = 1,
         composite_sub: int = 1,
     ) -> NDArray[np.float32]:
         """Samples noise layers and routes them through active formula."""
@@ -510,16 +488,14 @@ class WorldChunkProvider(BaseChunkProvider):
             raw = self.formula.func(b, r, c)
             return np.clip(raw, 0.0, 1.0).astype(np.float32)
 
-        base_sub = max(world_floor, self.base_noise.profile.sub_sample_factor)
+        base_sub = self.base_noise.profile.sub_sample_factor
         b = self._sample_layer_grid(
             self.base_noise, ox, oy, width, height,
             step, base_sub, composite_sub,
         )
 
         if self.formula.uses_relief and self.macro_noise is not None:
-            m_sub = max(
-                world_floor, self.macro_noise.profile.sub_sample_factor
-            )
+            m_sub = self.macro_noise.profile.sub_sample_factor
             r = self._sample_layer_grid(
                 self.macro_noise, ox, oy, width, height,
                 step, m_sub, composite_sub,
@@ -528,9 +504,7 @@ class WorldChunkProvider(BaseChunkProvider):
             r = np.zeros_like(b)
 
         if self.formula.uses_crust and self.crust_noise is not None:
-            c_sub = max(
-                world_floor, self.crust_noise.profile.sub_sample_factor
-            )
+            c_sub = self.crust_noise.profile.sub_sample_factor
             c = self._sample_layer_grid(
                 self.crust_noise, ox, oy, width, height,
                 step, c_sub, composite_sub,

@@ -3,11 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-try:
-    import yaml
-except ImportError:
-    yaml = None
+import yaml
 
 from utils.error_handler import fail_fast
 
@@ -44,9 +40,6 @@ class LightingProfileLoader:
 
         if not cfg_path.exists():
             fail_fast(f"Lighting profile file missing: {cfg_path}")
-
-        if yaml is None:
-            fail_fast("PyYAML is not installed. Run: pip install pyyaml")
 
         with open(cfg_path, "r", encoding="utf-8") as f:
             data: Dict[str, Any] = yaml.safe_load(f) or {}

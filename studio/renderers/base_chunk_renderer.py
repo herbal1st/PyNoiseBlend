@@ -73,8 +73,6 @@ class BaseChunkRenderer(BaseRenderer):
             self._chunks_stale_from_scrub = False
             self._is_refining = True
 
-        sub_override = state.active_sub_sample_override
-
         if self._is_refining:
             remaining = self.chunk_manager.update_focus(
                 state.cam_x,
@@ -82,7 +80,6 @@ class BaseChunkRenderer(BaseRenderer):
                 float(self.width),
                 float(self.height),
                 max_new_chunks=config.CHUNK_REFINE_BUDGET_PER_FRAME,
-                sub_sample_override=sub_override,
             )
             self._draw_refinement_frame(state)
             if remaining == 0:
@@ -96,7 +93,6 @@ class BaseChunkRenderer(BaseRenderer):
             state.cam_y,
             float(self.width),
             float(self.height),
-            sub_sample_override=sub_override,
         )
         self.screen.fill(config.COLOR_BG)
         self.chunk_manager.draw_chunks(self.screen, state.cam_x, state.cam_y)

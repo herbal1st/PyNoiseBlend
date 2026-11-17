@@ -4,17 +4,28 @@ import time
 from typing import Dict, Optional, Tuple
 import pygame
 import config
+from studio.matrix_tuner import (
+    MATRIX_ROW_COUNT,
+    ROW_LACUNARITY,
+    ROW_OCTAVES,
+    ROW_PERSIST,
+    ROW_PROFILE,
+    ROW_SCALE,
+    ROW_SEED,
+    ROW_SUBSAMPLE,
+    ROW_WORLD_SEED,
+)
 from studio.state import StudioState
 from utils.noise.noise_generator import NoiseProfile
 
 _BASE_ROWS: Tuple[Tuple[int, str], ...] = (
-    (config.ROW_PROFILE, "PROFILE   :"),
-    (config.ROW_SCALE, "SCALE     :"),
-    (config.ROW_OCTAVES, "OCTAVES   :"),
-    (config.ROW_PERSIST, "PERSIST   :"),
-    (config.ROW_LACUNARITY, "LACUNARITY:"),
-    (config.ROW_SUBSAMPLE, "SUB-SAMPLE:"),
-    (config.ROW_SEED, "SEED      :"),
+    (ROW_PROFILE, "PROFILE   :"),
+    (ROW_SCALE, "SCALE     :"),
+    (ROW_OCTAVES, "OCTAVES   :"),
+    (ROW_PERSIST, "PERSIST   :"),
+    (ROW_LACUNARITY, "LACUNARITY:"),
+    (ROW_SUBSAMPLE, "SUB-SAMPLE:"),
+    (ROW_SEED, "SEED      :"),
 )
 
 _MATRIX_BG_CACHE: Dict[
@@ -38,7 +49,7 @@ def draw_parameter_matrix(
     num_cols = 3 if is_mode_world else 1
 
     box_w = pad + lbl_w + (num_cols * col_w) + pad
-    total_rows = config.MATRIX_ROW_COUNT if is_mode_world else 7
+    total_rows = MATRIX_ROW_COUNT if is_mode_world else 7
     box_h = pad + ((total_rows + 1) * line_h) + pad
 
     bg_surf = _get_matrix_bg_surface(box_w, box_h, config.COLOR_HUD_CARD_2D)
@@ -48,7 +59,7 @@ def draw_parameter_matrix(
         screen,
         config.COLOR_SELECTION,
         (x, y, box_w, box_h),
-        config.PANEL_SELECTION_WIDTH,
+        2,
     )
 
     state.matrix_hitboxes.clear()
@@ -60,14 +71,14 @@ def draw_parameter_matrix(
 
     rows = list(_BASE_ROWS)
     if is_mode_world:
-        rows.append((config.ROW_WORLD_SEED, "WORLD SEED:"))
+        rows.append((ROW_WORLD_SEED, "WORLD SEED:"))
 
     for row_idx, (row_id, row_lbl) in enumerate(rows):
         ry = y + pad + ((row_idx + 1) * line_h)
         lbl_surf = font.render(row_lbl, True, config.COLOR_HUD_TEXT_NORMAL)
         screen.blit(lbl_surf, (x + pad, ry))
 
-        if row_id == config.ROW_WORLD_SEED:
+        if row_id == ROW_WORLD_SEED:
             _draw_world_seed_cell(
                 screen, font, state, x, ry, pad, lbl_w, col_w, line_h
             )
@@ -189,7 +200,7 @@ def _draw_matrix_cell(
             screen,
             config.COLOR_SELECTION,
             cell_rect,
-            config.PANEL_SELECTION_WIDTH,
+            2,
         )
 
     text_col = (
@@ -220,12 +231,12 @@ def _draw_world_seed_cell(
     cx = x + pad + lbl_w
     cell_w = (col_w * 3) - 6
     cell_rect = pygame.Rect(cx, ry - 1, cell_w, line_h - 1)
-    state.matrix_hitboxes[(config.ROW_WORLD_SEED, 0)] = cell_rect
+    state.matrix_hitboxes[(ROW_WORLD_SEED, 0)] = cell_rect
 
-    is_focused = state.selected_matrix_row == config.ROW_WORLD_SEED
+    is_focused = state.selected_matrix_row == ROW_WORLD_SEED
     is_typing = (
         state.is_editing_seed
-        and state.editing_seed_coord == (config.ROW_WORLD_SEED, 0)
+        and state.editing_seed_coord == (ROW_WORLD_SEED, 0)
     )
 
     if is_typing:
@@ -244,7 +255,7 @@ def _draw_world_seed_cell(
             screen,
             config.COLOR_SELECTION,
             cell_rect,
-            config.PANEL_SELECTION_WIDTH,
+            2,
         )
 
     t_surf = font.render(val_text, True, text_col)
@@ -264,22 +275,22 @@ def _format_cell_value(
     if prof is None:
         return "[ None ]"
 
-    if row == config.ROW_PROFILE:
+    if row == ROW_PROFILE:
         return f"[ {prof.profile_name} ]"
-    if row == config.ROW_SCALE:
+    if row == ROW_SCALE:
         return f"[ {prof.scale:.1f} px ]"
-    if row == config.ROW_OCTAVES:
+    if row == ROW_OCTAVES:
         return f"[ {prof.octaves} ]"
-    if row == config.ROW_PERSIST:
+    if row == ROW_PERSIST:
         return f"[ {prof.decay:.2f} ]"
-    if row == config.ROW_LACUNARITY:
+    if row == ROW_LACUNARITY:
         return f"[ {prof.lacunarity:.2f} ]"
-    if row == config.ROW_SUBSAMPLE:
+    if row == ROW_SUBSAMPLE:
         return f"[ {prof.sub_sample_factor}x ]"
-    if row == config.ROW_SEED:
+    if row == ROW_SEED:
         is_typing = (
             state.is_editing_seed
-            and state.editing_seed_coord == (config.ROW_SEED, col)
+            and state.editing_seed_coord == (ROW_SEED, col)
         )
         if is_typing:
             return _format_typing_seed(state.seed_input_buffer)

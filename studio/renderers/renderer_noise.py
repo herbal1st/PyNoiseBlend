@@ -155,11 +155,6 @@ class RendererNoise(BaseChunkRenderer):
             else "OFF (Smooth)"
         )
         net_tag = "ACTIVE" if state.net_enabled else "OFF"
-        fallback_tag = (
-            f" [FALLBACK: {config.RESOLUTION_FALLBACK_DIVIDER}x]"
-            if state.fallback_latched
-            else ""
-        )
 
         hud_lines: List[Tuple[str, Tuple[int, int, int]]] = [
             (
@@ -179,7 +174,7 @@ class RendererNoise(BaseChunkRenderer):
             (
                 f"CHUNKS: {len(self.chunk_manager.chunks)} | "
                 f"POS: ({state.cam_x:.1f}, {state.cam_y:.1f}) | "
-                f"FPS: {fps:.1f}{fallback_tag}",
+                f"FPS: {fps:.1f}",
                 config.COLOR_HUD_TEXT_NORMAL,
             ),
         ]

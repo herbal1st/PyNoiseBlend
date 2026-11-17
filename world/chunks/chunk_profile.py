@@ -1,25 +1,16 @@
-"""
-Data model and loader for spatial chunk streaming and sizing configurations.
-"""
+"""Data model and loader for spatial chunk streaming and sizing settings."""
 
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
-import sys
-
-try:
-    import yaml
-except ImportError:
-    yaml = None
+import yaml
 
 from utils.error_handler import fail_fast
 
 
 @dataclass(frozen=True, slots=True)
 class ChunkProfile:
-    """
-    Immutable data model holding chunk dimensions and streaming margins.
-    """
+    """Immutable data model holding chunk dimensions and streaming margins."""
 
     profile_name: str
     chunk_size: int
@@ -28,26 +19,19 @@ class ChunkProfile:
 
 
 class ChunkProfileLoader:
-    """
-    Loads and validates spatial chunk profiles from chunk.yaml.
-    """
+    """Loads and validates spatial chunk profiles from chunk.yaml."""
 
     @classmethod
     def load_profiles(
         cls,
         library_path: Optional[Path] = None,
     ) -> Dict[str, ChunkProfile]:
-        """
-        Parses chunk YAML configuration and enforces power-of-2 dimensions.
-        """
+        """Parses chunk YAML configuration and enforces power-of-2 sizing."""
         root_dir = Path(__file__).resolve().parents[2]
         cfg_path = library_path or (root_dir / "profiles" / "chunk.yaml")
 
         if not cfg_path.exists():
             fail_fast(f"Chunk profile file missing: {cfg_path}")
-
-        if yaml is None:
-            fail_fast("PyYAML is not installed. Run: pip install pyyaml")
 
         with open(cfg_path, "r", encoding="utf-8") as f:
             data: Dict[str, Any] = yaml.safe_load(f) or {}

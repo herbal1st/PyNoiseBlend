@@ -177,16 +177,21 @@ class BaseRenderer:
         start_y: int,
         line_h: int,
     ) -> None:
-        """Blits mode segments and frames the active mode in selection blue."""
+        """Blits mode segments and frames active mode in selection blue."""
         curr_x = start_x
         for surf, is_active in segments:
             self.screen.blit(surf, (curr_x, start_y))
             if is_active:
-                rect = (curr_x - 3, start_y - 1, surf.get_width() + 6, line_h + 2)
+                rect = (
+                    curr_x - 3,
+                    start_y - 1,
+                    surf.get_width() + 6,
+                    line_h + 2,
+                )
                 pygame.draw.rect(
                     self.screen,
                     config.COLOR_SELECTION,
                     rect,
-                    config.PANEL_SELECTION_WIDTH,
+                    2,
                 )
             curr_x += surf.get_width()

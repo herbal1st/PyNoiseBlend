@@ -3,21 +3,20 @@
 from dataclasses import dataclass
 import math
 from pathlib import Path
-import sys
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
-
-try:
-    import yaml
-except ImportError:
-    yaml = None
+import yaml
 
 import config
+from utils.error_handler import fail_fast
 from utils.noise.perlin import PerlinNoise
 from utils.noise.simplex import SimplexNoise
 from utils.noise.value import ValueNoise
 from utils.resampler import bilinear_resample_2d
+
+NOISE_TYPES: Tuple[str, ...] = ("SIMPLEX", "PERLIN", "VALUE")
+SUB_SAMPLE_FACTORS: Tuple[int, ...] = (1, 2, 4, 8)
 
 
 @dataclass(slots=True)
@@ -34,7 +33,7 @@ class NoiseProfile:
     sub_sample_factor: int
 
     def clone(self) -> "NoiseProfile":
-        """Produces an independent duplicate of this profile configuration."""
+        """Produces an independent duplicate of this configuration."""
         return NoiseProfile(
             profile_name=self.profile_name,
             noise_type=self.noise_type,
@@ -59,8 +58,10 @@ class NoiseGenerator:
         self._build_engine()
 
     def set_scale(self, scale: float) -> None:
-        """Updates feature wavelength scale in place without engine reset."""
-        clamped = max(config.NOISE_MIN_SCALE, min(config.NOISE_MAX_SCALE, scale))
+        """Updates feature scale in place without engine reset."""
+        clamped = max(
+            config.NOISE_MIN_SCALE, min(config.NOISE_MAX_SCALE, scale)
+        )
         self.profile.scale = clamped
 
     def set_offset(self, offset_x: float, offset_y: float) -> None:
@@ -86,21 +87,21 @@ class NoiseGenerator:
         self.profile.lacunarity = clamped
 
     def set_seed(self, seed: int) -> None:
-        """Updates integer randomization seed and re-instantiates engine."""
+        """Updates integer randomization seed and rebuilds engine."""
         self.profile.seed = int(seed) & 0xFFFFFFFF
         self._build_engine()
 
     def set_noise_type(self, noise_type: str) -> None:
-        """Updates noise algorithm type and re-instantiates engine."""
+        """Updates noise algorithm type and rebuilds engine."""
         normalized = noise_type.upper()
-        if normalized not in config.NOISE_TYPES:
+        if normalized not in NOISE_TYPES:
             return
         self.profile.noise_type = normalized
         self._build_engine()
 
     def set_sub_sample_factor(self, factor: int) -> None:
         """Updates coarse sampling divider in place."""
-        if factor in config.SUB_SAMPLE_FACTORS:
+        if factor in SUB_SAMPLE_FACTORS:
             self.profile.sub_sample_factor = factor
 
     def sync_from_profile(
@@ -182,12 +183,7 @@ class NoiseGenerator:
         cfg_path = library_path or (root_dir / "profiles" / "noise.yaml")
 
         if not cfg_path.exists():
-            print(f"[Error] Noise profile file missing: {cfg_path}")
-            sys.exit(1)
-
-        if yaml is None:
-            print("[Error] PyYAML is not installed. Run: pip install pyyaml")
-            sys.exit(1)
+            fail_fast(f"Noise profile file missing: {cfg_path}")
 
         with open(cfg_path, "r", encoding="utf-8") as f:
             data: Dict[str, Any] = yaml.safe_load(f) or {}
@@ -273,7 +269,7 @@ class NoiseGenerator:
         sub_factor: int,
         upscale: bool,
     ) -> NDArray[np.float32]:
-        """Evaluates (N+1) fencepost or native grid with optional resample."""
+        """Evaluates (N+1) fencepost or native grid with resample."""
         if sub_factor > 1:
             eval_w = (width // sub_factor) + 1
             eval_h = (height // sub_factor) + 1

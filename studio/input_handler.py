@@ -5,6 +5,25 @@ from typing import Tuple
 import pygame
 import config
 from studio import matrix_tuner, wave_tuner
+from studio.matrix_tuner import (
+    ROW_SEED,
+    ROW_WORLD_SEED,
+    is_discrete_matrix_row,
+)
+from studio.renderers.renderer_lighting import (
+    LIGHT_MATRIX_ROW_COUNT,
+    LIGHT_ORBIT_SCALES,
+    LIGHT_ROW_ALTITUDE,
+    LIGHT_ROW_AMBIENT,
+    LIGHT_ROW_AZIMUTH,
+    LIGHT_ROW_CONTRAST,
+    LIGHT_ROW_EXPOSURE,
+    LIGHT_ROW_ORBIT_SPEED,
+    LIGHT_ROW_PRESET,
+    LIGHT_ROW_SCALE,
+    LIGHT_ROW_TIME,
+    LIGHT_ROW_WORLD,
+)
 from studio.state import StudioState
 
 
@@ -130,11 +149,11 @@ class InputHandler:
             self._reset_tuning(state, mods)
         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
             if state.active_mode in (3, 4):
-                is_seed_row = state.selected_matrix_row in (
-                    config.ROW_SEED,
-                    config.ROW_WORLD_SEED,
+                is_seed = state.selected_matrix_row in (
+                    ROW_SEED,
+                    ROW_WORLD_SEED,
                 )
-                if is_seed_row:
+                if is_seed:
                     state.start_seed_editing(
                         state.selected_matrix_row, state.selected_matrix_col
                     )
@@ -143,7 +162,7 @@ class InputHandler:
             if state.active_mode == 5:
                 state.selected_light_row = (
                     state.selected_light_row + direction
-                ) % config.LIGHT_MATRIX_ROW_COUNT
+                ) % LIGHT_MATRIX_ROW_COUNT
             elif state.active_mode in (3, 4):
                 if shift_held:
                     matrix_tuner.move_matrix_column(state, direction)
@@ -157,7 +176,7 @@ class InputHandler:
                 if self._is_discrete_light_row(state.selected_light_row):
                     self._step_light_param(state, direction)
             elif state.active_mode in (3, 4):
-                if StudioState.is_discrete_row(state.selected_matrix_row):
+                if is_discrete_matrix_row(state.selected_matrix_row):
                     matrix_tuner.step_matrix_param(state, direction)
 
         return True
@@ -192,10 +211,8 @@ class InputHandler:
                 return
 
         if state.active_mode == 1:
-            panel_h = config.SCREEN_HEIGHT // config.PANEL_COUNT
-            panel_idx = min(
-                config.PANEL_COUNT - 1, max(0, pos[1] // panel_h)
-            )
+            panel_h = config.SCREEN_HEIGHT // 4
+            panel_idx = min(3, max(0, pos[1] // panel_h))
             if panel_idx not in wave_tuner.get_valid_channels(state):
                 return
             if state.selected_panel_index != panel_idx:
@@ -252,14 +269,14 @@ class InputHandler:
             state.selected_panel_index = col
             direction = -1 if (button == 3 or shift_held) else 1
 
-            if row in (config.ROW_SEED, config.ROW_WORLD_SEED):
+            if row in (ROW_SEED, ROW_WORLD_SEED):
                 if button == 1 and not shift_held:
                     state.start_seed_editing(row, col)
                 else:
                     matrix_tuner.step_matrix_param(state, direction)
                 return True, False
 
-            if StudioState.is_discrete_row(row):
+            if is_discrete_matrix_row(row):
                 matrix_tuner.step_matrix_param(state, direction)
                 return True, False
 
@@ -293,14 +310,14 @@ class InputHandler:
         elif self.active_mouse_button == 3 and dx != 0:
             factor = math.exp(float(dx) * config.MOUSE_ZOOM_SENSITIVITY)
             if state.active_mode == 5:
-                if state.selected_light_row == config.LIGHT_ROW_SCALE:
+                if state.selected_light_row == LIGHT_ROW_SCALE:
                     self._scrub_light_scale(state, factor)
                 elif not self._is_discrete_light_row(state.selected_light_row):
                     self._scrub_light_param(state, float(dx) * 0.006)
                 return
 
             if state.active_mode in (3, 4):
-                if not StudioState.is_discrete_row(state.selected_matrix_row):
+                if not is_discrete_matrix_row(state.selected_matrix_row):
                     direction = 1 if dx > 0 else -1
                     matrix_tuner.step_matrix_param(
                         state,
@@ -368,7 +385,7 @@ class InputHandler:
         shift_held = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
 
         if state.active_mode == 5:
-            if state.selected_light_row == config.LIGHT_ROW_SCALE:
+            if state.selected_light_row == LIGHT_ROW_SCALE:
                 step_scale = 1.0 + (config.NOISE_SCALE_ZOOM_RATE * dt)
                 factor = step_scale if move_right else (1.0 / step_scale)
                 self._scrub_light_scale(state, factor)
@@ -377,7 +394,7 @@ class InputHandler:
             return
 
         if state.active_mode in (3, 4):
-            if StudioState.is_discrete_row(state.selected_matrix_row):
+            if is_discrete_matrix_row(state.selected_matrix_row):
                 return
             step_scale = 1.0 + (config.NOISE_SCALE_ZOOM_RATE * dt)
             factor = step_scale if move_right else (1.0 / step_scale)
@@ -419,21 +436,21 @@ class InputHandler:
     def _is_discrete_light_row(row_id: int) -> bool:
         """Checks if a Solar Control Deck row uses discrete stepping."""
         return row_id in (
-            config.LIGHT_ROW_PRESET,
-            config.LIGHT_ROW_WORLD,
-            config.LIGHT_ROW_ORBIT_SPEED,
+            LIGHT_ROW_PRESET,
+            LIGHT_ROW_WORLD,
+            LIGHT_ROW_ORBIT_SPEED,
         )
 
     @staticmethod
     def _step_light_param(state: StudioState, direction: int) -> None:
         """Steps discrete Solar Control Deck parameters by one increment."""
         row = state.selected_light_row
-        if row == config.LIGHT_ROW_PRESET:
+        if row == LIGHT_ROW_PRESET:
             state.cycle_lighting_profile(direction)
-        elif row == config.LIGHT_ROW_WORLD:
+        elif row == LIGHT_ROW_WORLD:
             state.cycle_light_world_source(direction)
-        elif row == config.LIGHT_ROW_ORBIT_SPEED:
-            scales = config.LIGHT_ORBIT_SCALES
+        elif row == LIGHT_ROW_ORBIT_SPEED:
+            scales = LIGHT_ORBIT_SCALES
             cur_idx = (
                 scales.index(state.light_orbit_scale)
                 if state.light_orbit_scale in scales
@@ -446,12 +463,12 @@ class InputHandler:
     def _scrub_light_param(state: StudioState, delta_unit: float) -> None:
         """Adjusts continuous Solar Control Deck parameters smoothly."""
         row = state.selected_light_row
-        if row == config.LIGHT_ROW_AZIMUTH:
+        if row == LIGHT_ROW_AZIMUTH:
             state.light_azimuth_deg = (
                 state.light_azimuth_deg
                 + (delta_unit * config.LIGHT_AZIMUTH_RATE)
             ) % 360.0
-        elif row == config.LIGHT_ROW_ALTITUDE:
+        elif row == LIGHT_ROW_ALTITUDE:
             state.light_altitude_deg = max(
                 0.0,
                 min(
@@ -460,7 +477,7 @@ class InputHandler:
                     + (delta_unit * config.LIGHT_ALTITUDE_RATE),
                 ),
             )
-        elif row == config.LIGHT_ROW_CONTRAST:
+        elif row == LIGHT_ROW_CONTRAST:
             state.light_contrast = max(
                 config.LIGHT_CONTRAST_MIN,
                 min(
@@ -469,7 +486,7 @@ class InputHandler:
                     + (delta_unit * config.LIGHT_CONTRAST_RATE),
                 ),
             )
-        elif row == config.LIGHT_ROW_AMBIENT:
+        elif row == LIGHT_ROW_AMBIENT:
             state.light_ambient_ratio = max(
                 0.0,
                 min(
@@ -478,13 +495,13 @@ class InputHandler:
                     + (delta_unit * config.LIGHT_AMBIENT_RATE),
                 ),
             )
-        elif row == config.LIGHT_ROW_TIME:
+        elif row == LIGHT_ROW_TIME:
             state.light_time_ratio = (
                 state.light_time_ratio
                 + (delta_unit * config.LIGHT_TIME_RATE)
             ) % 1.0
             state.light_time_dirty = True
-        elif row == config.LIGHT_ROW_EXPOSURE:
+        elif row == LIGHT_ROW_EXPOSURE:
             state.light_exposure = max(
                 config.LIGHT_EXPOSURE_MIN,
                 min(

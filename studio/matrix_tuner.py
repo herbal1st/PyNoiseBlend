@@ -2,15 +2,37 @@
 
 from typing import TYPE_CHECKING
 import config
+from utils.noise.noise_generator import SUB_SAMPLE_FACTORS
 
 if TYPE_CHECKING:
     from studio.state import StudioState
     from utils.noise.noise_generator import NoiseProfile
 
+ROW_PROFILE: int = 0
+ROW_SCALE: int = 1
+ROW_OCTAVES: int = 2
+ROW_PERSIST: int = 3
+ROW_LACUNARITY: int = 4
+ROW_SUBSAMPLE: int = 5
+ROW_SEED: int = 6
+ROW_WORLD_SEED: int = 7
+MATRIX_ROW_COUNT: int = 8
+
+
+def is_discrete_matrix_row(row: int) -> bool:
+    """Checks if a matrix row index represents a discrete parameter."""
+    return row in (
+        ROW_PROFILE,
+        ROW_OCTAVES,
+        ROW_SUBSAMPLE,
+        ROW_SEED,
+        ROW_WORLD_SEED,
+    )
+
 
 def move_matrix_row(state: "StudioState", direction: int) -> None:
     """Steps matrix row selection up or down."""
-    max_rows = config.MATRIX_ROW_COUNT if state.active_mode == 4 else 7
+    max_rows = MATRIX_ROW_COUNT if state.active_mode == 4 else 7
     state.selected_matrix_row = (
         state.selected_matrix_row + direction
     ) % max_rows
@@ -100,19 +122,19 @@ def step_matrix_param(
     if is_mode_world and col == 1 and not state.formula.uses_relief:
         return
 
-    if row == config.ROW_PROFILE:
+    if row == ROW_PROFILE:
         if is_mode_world:
             cycle_layer_profile(state, col, direction)
         else:
             state.cycle_noise_profile(direction)
         return
 
-    if row == config.ROW_WORLD_SEED:
+    if row == ROW_WORLD_SEED:
         state.world_seed = (state.world_seed + direction) & 0xFFFFFFFF
         state.mark_discrete_change()
         return
 
-    if row == config.ROW_SCALE:
+    if row == ROW_SCALE:
         if is_mode_world:
             scale_world_layers(state, factor, single_layer=single_layer)
         else:
@@ -202,20 +224,20 @@ def _step_profile_field(
     dt: float,
 ) -> None:
     """Applies discrete or continuous adjustment to a NoiseProfile."""
-    if row == config.ROW_OCTAVES:
+    if row == ROW_OCTAVES:
         prof.octaves = max(
             config.OCTAVE_MIN,
             min(config.OCTAVE_MAX, prof.octaves + direction),
         )
         state.mark_discrete_change()
-    elif row == config.ROW_PERSIST:
+    elif row == ROW_PERSIST:
         rate = config.DECAY_STEP_RATE * dt if dt > 0.0 else 0.05
         prof.decay = max(
             config.DECAY_MIN,
             min(config.DECAY_MAX, prof.decay + (direction * rate)),
         )
         state.mark_scrubbing()
-    elif row == config.ROW_LACUNARITY:
+    elif row == ROW_LACUNARITY:
         rate = config.LACUNARITY_STEP_RATE * dt if dt > 0.0 else 0.05
         prof.lacunarity = max(
             config.LACUNARITY_MIN,
@@ -225,8 +247,8 @@ def _step_profile_field(
             ),
         )
         state.mark_scrubbing()
-    elif row == config.ROW_SUBSAMPLE:
-        factors = config.SUB_SAMPLE_FACTORS
+    elif row == ROW_SUBSAMPLE:
+        factors = SUB_SAMPLE_FACTORS
         cur_idx = (
             factors.index(prof.sub_sample_factor)
             if prof.sub_sample_factor in factors
@@ -235,7 +257,7 @@ def _step_profile_field(
         next_idx = (cur_idx + direction) % len(factors)
         prof.sub_sample_factor = factors[next_idx]
         state.mark_discrete_change()
-    elif row == config.ROW_SEED:
+    elif row == ROW_SEED:
         prof.seed = (prof.seed + direction) & 0xFFFFFFFF
         state.mark_discrete_change()
 
