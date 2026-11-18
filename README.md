@@ -29,74 +29,70 @@ Architecture   : PyNoiseBlend is an endless 2D procedural terrain generator
                  It runs without heavyweight game engines or compiled C++
                  extensions.
 
-The Paradigm Shift: From Square Grid Tiles to Continuous Heightfields
-In traditional 2D game development, maps are typically assembled from square
-sprite tiles like plastic building blocks (such as 16x16 or 32x32 pixel
-squares). Creating natural coastlines or winding mountain ridges requires
-complex corner-stamping rules and specialized edge-transition art.
+The Paradigm Shift: From Tile Grids to Continuous Heightfields
+In traditional 2D game development, worlds are usually assembled from square
+sprite tiles like plastic toy bricks (such as 16x16 or 32x32 pixel blocks).
+Creating natural coastlines or organic winding ridges with bricks requires
+complex corner-stamping rules and tedious edge-transition art.
 
 PyNoiseBlend treats terrain as a smooth, continuous elevation landscape where
-every individual pixel holds an exact height between 0.0 (deep ocean trenches)
+every single pixel holds an exact height between 0.0 (deep ocean trenches)
 and 1.0 (highest mountain peaks):
                  h(x, y) in [0.0, 1.0]
 
-Think of it like moving from a world made of toy bricks to a smooth,
-infinitely zoomable topographical map. Every pixel on screen is an exact
+Think of it like moving from a world built of toy blocks to a smooth,
+infinitely zoomable topographical hiking map. Every pixel on screen is an exact
 evaluation of procedural mathematical waves or fractal noise, painted through
-smooth color gradient look-up tables and crisp elevation contour lines.
+smooth color look-up tables and razor-sharp elevation contour lines.
 
 Key Architectural Pillars:
-- Pre-Baked Raster Chunks: Instead of recalculating procedural math every
-  frame, the world is divided into square patches called chunks (128x128
-  pixels). Each chunk calculates its noise once, converts it into a
-  display-ready image in RAM, and stamps onto the screen effortlessly. When
-  standing still or panning across loaded terrain, procedural CPU math drops
-  to absolute zero.
-- Anchor-Locked Grid Snapping: Floating-point camera coordinates can cause
-  neighboring chunks to round to slightly different screen pixels, creating
-  thin 1-pixel black cracks. The engine solves this by anchoring all visible
-  chunks to a single rounded top-left corner and stamping outward in exact
-  whole-pixel strides.
-- Agnostic ChunkProvider Architecture: Memory streaming (ChunkManager) is
-  completely decoupled from terrain math via the ChunkProvider contract and a
-  shared BaseChunkProvider—making it effortless to swap between raw noise,
-  composite multi-layer worlds, or custom gameplay layers.
+- Pre-Baked Raster Chunks: Recalculating procedural noise formulas for every
+  screen pixel each frame would overwhelm any CPU. Instead, the world is cut
+  into square patches called chunks (128x128 pixels). Each chunk computes its
+  elevation math once, converts it into a display-ready picture in RAM, and
+  stamps it onto the screen. When standing still or panning across loaded
+  areas, procedural CPU workload drops to absolute zero.
+- Anchor-Locked Grid Snapping: When a camera moves by fractional amounts,
+  neighboring chunks can round to different screen pixels, creating tiny
+  1-pixel black cracks. PyNoiseBlend solves this by anchoring visible chunks to
+  a single rounded top-left corner and stamping outward in whole pixels.
+- Agnostic ChunkProvider Architecture: Memory management (ChunkManager) is
+  completely separated from terrain mathematics via the ChunkProvider
+  contract and a shared BaseChunkProvider. This makes it effortless to swap
+  between raw noise, multi-layer worlds, or custom gameplay layers.
 - Clean Controller Separation: Session data (StudioState), input event routing
   (InputHandler), wave math tuning (wave_tuner), matrix/world tuning
-  (matrix_tuner), and UI table drawing (parameter_matrix) each live in focused,
-  single-responsibility modules.
-- Engine-Wide Live Session State Machine: Adjustments made to a noise preset in
-  Mode 3 modify active working copies in memory. Tuning a noise preset in
-  Mode 3 immediately updates any world layer using that preset in Mode 4, while
-  your original YAML configuration files on disk remain pristine.
-- Interactive 2D Parameter Matrix Deck: Modes 3 and 4 include an on-screen
+  (matrix_tuner), and UI table drawing (parameter_matrix) each live in
+  focused, single-responsibility modules.
+- Engine-Wide Live Session State Machine: Edits made to a noise profile in
+  Mode 3 modify working copies in memory. Tuning a preset in Mode 3 immediately
+  updates any world layer using that preset in Mode 4, while your original YAML
+  configuration files on disk remain pristine.
+- Interactive 2D Parameter Matrix Deck: Modes 3 and 4 feature an on-screen
   spreadsheet-style control deck exposing all noise settings (Profile, Scale,
-  Octaves, Decay, Lacunarity, Sub-sampling, and Seeds) for live tuning via
-  mouse or keyboard.
+  Octaves, Decay, Lacunarity, Sub-sampling, and Seeds) for live tuning.
 - Direct Per-Layer Sub-Sampling Independence: Base Detail, Relief Multiplier,
-  and Continental Crust each maintain 100% independent control over their
-  coarse sampling dividers (1x, 2x, 4x, 8x). What you select in the matrix is
-  exactly what evaluates—free of artificial global clamps or hidden floors.
-- Two-Tier Interactive Scrubbing & Progressive Refinement: While dragging
-  sliders or zooming scales continuously, viewports switch temporarily to a
-  lightweight low-resolution preview grid for fluid 60 FPS feedback. Once
-  tuning settles, full detail snaps back in, rebuilding chunks smoothly from
-  the center of the screen outward under a strict per-frame budget.
+  and Continental Crust maintain 100% independent control over coarse sampling
+  dividers (1x, 2x, 4x, 8x). What you select in the matrix evaluates directly,
+  without hidden global clamps or forced resolution floors.
+- Two-Tier Scrubbing & Progressive Refinement: While dragging sliders or
+  zooming scales, viewports switch temporarily to a fast, lightweight preview
+  grid for fluid 60 FPS feedback. Once tuning stops, full detail snaps back,
+  rebuilding chunks smoothly from the center outward under a frame budget.
 - Discrete Single-Tap Input Separation: Step-based settings (Octaves, Profile,
-  Sub-sampling, Seeds) advance strictly once per key tap or mouse click,
-  preventing key-repeat floods from bogging down the CPU.
+  Sub-sampling, Seeds) advance strictly once per key tap or click, preventing
+  keyboard auto-repeat floods from bogging down the CPU.
 - Click-to-Type Seed Prompt: Clicking any seed cell (or pressing ENTER on it)
-  opens direct keyboard digit entry so you can type exact world seeds on the
-  fly.
-- Color-Before-Expand Surface Scaling: Coarse preview grids and tiled rasters
-  are colored directly while small and stretched up by SDL hardware scaling,
-  avoiding millions of redundant per-pixel color lookups.
+  opens direct numeric entry so you can type exact world seeds on the fly.
+- Color-Before-Expand Surface Scaling: Coarse preview grids and retro tiles are
+  colored while small and stretched up by hardware scaling, avoiding millions
+  of redundant per-pixel color lookups.
 - Mathematical Elevation Budgeting (Zero-Clipping Invariant): Total terrain
-  height is strictly divided into additive and multiplicative shares so
-  mountain peaks never flatten against a 1.0 ceiling, and inland valleys stay
-  naturally elevated above sea level.
+  height is divided into additive and multiplicative shares so mountain peaks
+  never flatten against a 1.0 ceiling, and inland valleys stay naturally
+  elevated above sea level.
 - Triple-Engine Procedural Suite: Supports Simplex, Perlin, and Value Noise,
-  letting you balance organic flowing ridges against raw generation speed.
+  letting you trade organic flowing ridges for raw generation speed.
 - 1-Pixel Gradient Halo: Each chunk samples an invisible 1-pixel border ring
   around its edges before measuring slopes, guaranteeing smooth lighting and
   contour continuity across chunk borders with zero visible seams.
@@ -108,21 +104,19 @@ Key Architectural Pillars:
   2x, 4x, and 8x downscaling dividers.
 - Elliptical Streaming with Margin Clamping: Streams chunks in a screen-shaped
   ellipse with a safety buffer zone (hysteresis) so chunks do not flicker in
-  and out of memory near edges, and corners never show gaps on widescreens.
-- Screen-Center Anchored Proportional Zoom: Zooming multiplies all active
-  layers together while mathematically shifting offsets so terrain features
-  stay pinned to the center of your screen.
-- Deferred Slope Gradients: In Mode 4, WorldChunkProvider skips slope-tilt
-  math (np.gradient) and its extra 1-pixel border ring unless lighting or
-  tiled contour lines actually require them—reclaiming ~25–30% chunk bake speed.
-- Single-Pass 3D Solar Hillshading & Hybrid Gradient Sampling (world/lighting/):
-  Mode 5 computes 3D sunlight direction (compass azimuth + sun altitude),
-  adjustable neutral exposure (letting sunlit ridges brighten above flat
-  plains without bleaching), and time-of-day sky tinting on a screen-relative
-  lightmap grid sampled directly from visible chunks, then scales and multiplies
-  it over the screen in one single pygame.BLEND_MULT pass. Unloaded chunk
-  areas blend seamlessly with world-anchored slopes from the scrub preview so
-  shadows never slip out of sync during panning or live sun orbits.
+  and out of memory near edges, and widescreen corners never show gaps.
+- Screen-Center Anchored Proportional Zoom: Zooming scales all active layers
+  together while shifting offsets so terrain features stay pinned to the
+  center of your screen.
+- Deferred Slope Gradients: In Mode 4, WorldChunkProvider skips slope math
+  (np.gradient) and its 1-pixel border halo unless lighting or tiled contour
+  lines actually need them—reclaiming ~25–30% chunk bake speed.
+- Single-Pass 3D Solar Hillshading & Hybrid Gradient Sampling: Mode 5 computes
+  3D sunlight direction (compass azimuth + sun altitude), adjustable neutral
+  exposure, and sky tinting on a compact lightmap grid sampled directly from
+  chunks, multiplying it over the screen in one single pygame.BLEND_MULT pass.
+  Unloaded chunk areas blend seamlessly with world-anchored slopes from the
+  preview so shadows never slip out of sync during panning or live sun orbits.
 
 
 [2.0 PROCEDURAL GENERATION & MATHEMATICAL WAVE SYNTHESIS]
@@ -196,7 +190,7 @@ the way down to sea level, punching unnatural holes through continents.
 
 PyNoiseBlend solves this by dividing the [0.0, 1.0] elevation range into a
 strict mathematical "Elevation Budget":
-  CRUST_BUDGET + RELIEF_BUDGET = 1.0   (for example: 0.40 crust + 0.60 relief)
+  CRUST_BUDGET + RELIEF_BUDGET = 1.0   (for example: 0.35 crust + 0.65 relief)
 
 The Three-Layer Master Formula:
   Height = (CRUST_BUDGET * C) + (RELIEF_BUDGET * B * ReliefEnvelope)
@@ -225,7 +219,7 @@ Decoupled Formula & World Build Architecture:
 World recipes in profiles/world.yaml (loaded by WorldProfileLoader in
 world/chunks/world_profile.py) act purely as initial noise-engine setups.
 Mode 4 shares the active formula directly with Modes 1 and 2, so you can swap
-any of the 12 formulas live ([TAB]) or switch noise builds ([B]) independently,
+any of the 11 formulas live ([TAB]) or switch noise builds ([B]) independently,
 and even rebind individual layer presets directly inside the parameter deck.
 
 
@@ -237,7 +231,7 @@ and displays are finite. The engine cannot pre-compute an entire planet at
 once, so it streams local patches on demand as the camera moves.
 
 What a Chunk Is (world/chunks/chunk.py):
-A chunk is a localized square tile of the continuous elevation surface:
+A chunk is a localized square patch of the continuous elevation surface:
 - Stored at integer chunk grid coordinates (cx, cy).
 - Default dimension: 128x128 pixels (configured in profiles/chunk.yaml).
 - Holds the float32 elevation grid h, slope gradients (gx, gy), and the baked
@@ -245,12 +239,13 @@ A chunk is a localized square tile of the continuous elevation surface:
 
 1-Pixel Halo & Deferred Slope Calculation:
 To measure slope steepness accurately at a chunk's edge, pixels need to peek
-one pixel across the boundary. When slope gradients (ENABLE_SLOPE_GRADIENTS)
-or tiled contour lines are active, the provider samples a 1-pixel padded
-border ring around the chunk, calculates slopes or edge crossings across the
-padded grid, and trims the halo away—preventing lighting or contour seams.
-When flat Mode 4 exploration has gradients deferred, this extra halo and
-gradient math are skipped completely for faster chunk baking.
+one pixel across the boundary into the next chunk. When slope gradients
+(ENABLE_SLOPE_GRADIENTS) or tiled contour lines are active, the provider
+samples a 1-pixel padded border ring around the chunk, calculates slopes or
+edge crossings across the padded grid, and trims the halo away—preventing
+lighting or contour seams. When flat Mode 4 exploration has gradients
+deferred, this extra halo and gradient math are skipped completely for faster
+chunk baking.
 
 Anchor-Locked Grid Projection:
 Floating-point camera positions can cause neighboring chunks to round to
@@ -570,7 +565,7 @@ The Multi-Kernel Evaluation Engine (core/contour_engine.py):
 -------------------------------------------------------------------------------
 The studio synchronizes mathematical formulas across Modes 1, 2, and 4:
 
-MODE 1 & MODE 4 CATALOG (12 Composite Formulas):
+MODE 1 & MODE 4 CATALOG (11 Composite Formulas):
 -------------------------------------------------------------------------------
 Three-Layer Formulas (Base + Relief + Crust Active):
     - Master 3-Layer Budgeting   : Additive tectonic crust + modulated relief.
@@ -579,7 +574,6 @@ Three-Layer Formulas (Base + Relief + Crust Active):
     - Inverse Crust Bypass       : Shoreline bypass preserving low relief.
     - Dynamic Lerp / Morph       : Smooth linear blend between crust and base.
     - Tectonic Subduction Belt   : Squared crust basin with ridge clamping.
-    - Stepped Mesa Terraces      : Multi-tier terrace quantization with crust.
 
 Two-Layer Formulas (Relief Multiplier Silenced; Base + Crust Active):
     - Factored Virtual Crust     : Continental crust drives floor and peaks.
@@ -589,14 +583,17 @@ Two-Layer Formulas (Relief Multiplier Silenced; Base + Crust Active):
     - Soft Natural Saturation    : Hyperbolic tangent organic compression.
 
 
-MODE 2 CATALOG (15 Streamlined Presets):
+MODE 2 CATALOG (14 Streamlined Presets):
 -------------------------------------------------------------------------------
-Mode 2 includes three isolated Solo geometry tracks plus the 12 composites:
-    - Presets 1 to 3   : Solo Components (Vertical Base D(x), Horizontal
-                         Relief M(y), and Radial Continental Crust C(r)).
-    - Presets 4 to 8   : 3-Layer Composite Series.
-    - Presets 9 to 13  : 2-Layer Series (Toggled via [P] between Radial/Warped).
-    - Presets 14 to 15 : Advanced 3-Layer Hybrids.
+Mode 2 includes three isolated Solo geometry tracks plus the 11 composites:
+    - Presets 1 to 3  : Solo Components (Vertical Base D(x), Horizontal
+                        Relief M(y), and Radial Continental Crust C(r)).
+    - Presets 4 to 9  : 3-Layer Composite Series (Master Budgeting, Global
+                        Envelope, Volcanic Island, Inverse Bypass, Dynamic
+                        Lerp, and Tectonic Subduction).
+    - Presets 10 to 14: 2-Layer Series (Virtual Crust, Tibetan Plateau, Razor
+                        Ridge, Inverted Canyonlands, Soft Saturation; toggled
+                        via [P] between Radial and Warped views).
 
 
 [10.0 CONTROLS & KEYBOARD / MOUSE SHORTCUTS]
@@ -748,7 +745,7 @@ pynoiseblend/
 │
 ├── core/                         # Mathematical & Procedural Kernel (Pure NumPy)
 │   ├── contour_engine.py         # Shared culled, in-place & tile isoline kernel
-│   ├── formulas.py               # Master 12-formula catalog, presets & 2D specs
+│   ├── formulas.py               # Master 11-formula catalog, presets & 2D specs
 │   └── wave_synthesizer.py       # 1D/2D wave math, dynamic centers & meshes
 │
 ├── world/                        # Spatial World & Streaming Engine
