@@ -75,6 +75,10 @@ Key Architectural Pillars:
   and Continental Crust maintain 100% independent control over coarse sampling
   dividers (1x, 2x, 4x, 8x). What you select in the matrix evaluates directly,
   without hidden global clamps or forced resolution floors.
+- Unified Explicit Grid Sampling Policy: Noise sampling uses a clean,
+  predictable contract. Functions request either a compact downsampled grid
+  or a full-resolution upscaled surface directly via an explicit sub_factor
+  parameter, eliminating ambiguous bypass flags or hidden overrides.
 - Two-Tier Scrubbing & Progressive Refinement: While dragging sliders or
   zooming scales, viewports switch temporarily to a fast, lightweight preview
   grid for fluid 60 FPS feedback. Once tuning stops, full detail snaps back,
@@ -176,7 +180,9 @@ hills) is handled in utils/noise/noise_generator.py:
                        (clamped between 1.00 and 4.00).
 - Seed & Noise Type  : Updatable live at runtime; automatically rebuilds the
                        underlying permutation tables or hash seeds.
-- Sub-Sample Factor  : Coarse sampling divider (1x, 2x, 4x, 8x) using an
+- Sub-Sample Factor  : Coarse sampling divider (1x, 2x, 4x, 8x). Callers can
+                       explicitly request raw compact grids (upscale=False) or
+                       full-resolution upscaled grids (upscale=True) using an
                        (N + 1) fencepost grid with smooth bilinear upscaling.
                        Tiled grid sampling aligns strictly to world tile
                        multiples and slices by sub-tile offsets for seamless
@@ -318,6 +324,22 @@ Sub-sampling is controlled completely and independently per noise layer (1x,
 - No Artificial Clamps: Layer sampling is never artificially clamped by hidden
   world floors or automated background latches. When you select 1x in the
   matrix deck, the engine evaluates at true 1x native resolution.
+
+The Unified Explicit Grid Policy:
+To ensure maximum code clarity and performance, NoiseGenerator avoids
+conflicting parameter flags or hidden internal overrides:
+- Clean Parameter Contract: NoiseGenerator.sample_grid accepts an explicit
+  sub_factor (defaulting to the profile setting if omitted) and an explicit
+  upscale boolean flag.
+- Raw Compact Grids: When callers request upscale=False, the generator
+  evaluates only the exact (N + 1) points needed and returns the raw compact
+  array directly, avoiding redundant intermediate upscaling passes.
+- Self-Contained Chunks: When callers request upscale=True, the generator
+  computes the coarse points and smoothly upscales them to the target chunk
+  dimensions using vectorized bilinear math in NumPy.
+- Multi-Layer Coordination: WorldChunkProvider requests compact grids directly
+  from each layer at sub_factor=1 for its target fencepost coordinates,
+  aligning them seamlessly without needing bypass flags.
 
 The (N + 1) Fencepost Rule:
 Dividing a span into N intervals requires N + 1 boundary points (just like a

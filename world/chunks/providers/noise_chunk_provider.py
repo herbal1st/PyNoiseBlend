@@ -113,6 +113,6 @@ class NoiseChunkProvider(BaseChunkProvider):
             height=height,
             step=1.0,
             tile_size=t_sz,
-            sub_sample_override=sub_factor,
+            sub_factor=sub_factor,
             upscale=False,
         )

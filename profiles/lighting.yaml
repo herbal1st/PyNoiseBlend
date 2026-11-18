@@ -6,7 +6,7 @@ profiles:
     day_cycle_duration: 60.0
     start_time_ratio: 0.25
     start_azimuth_deg: 180.0
-    start_altitude_deg: 10.0
+    start_altitude_deg: 25.0
     terrain_steepness: 135.0
     ambient_ratio: 0.25
     shadow_intensity: 170
@@ -27,7 +27,7 @@ profiles:
     day_cycle_duration: 0.0
     start_time_ratio: 0.75
     start_azimuth_deg: 0.0
-    start_altitude_deg: 12.0
+    start_altitude_deg: 20.0
     terrain_steepness: 150.0
     ambient_ratio: 0.25
     shadow_intensity: 180
@@ -42,7 +42,7 @@ profiles:
     day_cycle_duration: 90.0
     start_time_ratio: 0.05
     start_azimuth_deg: 70.0
-    start_altitude_deg: 14.0
+    start_altitude_deg: 15.0
     terrain_steepness: 135.0
     ambient_ratio: 0.35
     shadow_intensity: 175

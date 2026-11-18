@@ -465,13 +465,13 @@ class WorldChunkProvider(BaseChunkProvider):
             b = self.base_noise.sample_grid(
                 ox, oy, width, height,
                 step=step, tile_size=tile_size,
-                upscale=False, bypass_profile_sub=True,
+                sub_factor=1, upscale=False,
             )
             r = (
                 self.macro_noise.sample_grid(
                     ox, oy, width, height,
                     step=step, tile_size=tile_size,
-                    upscale=False, bypass_profile_sub=True,
+                    sub_factor=1, upscale=False,
                 )
                 if self.formula.uses_relief and self.macro_noise is not None
                 else np.zeros_like(b)
@@ -480,7 +480,7 @@ class WorldChunkProvider(BaseChunkProvider):
                 self.crust_noise.sample_grid(
                     ox, oy, width, height,
                     step=step, tile_size=tile_size,
-                    upscale=False, bypass_profile_sub=True,
+                    sub_factor=1, upscale=False,
                 )
                 if self.formula.uses_crust and self.crust_noise is not None
                 else np.zeros_like(b)
@@ -531,7 +531,7 @@ class WorldChunkProvider(BaseChunkProvider):
             return gen.sample_grid(
                 ox, oy, width, height,
                 step=step, tile_size=0,
-                upscale=False, bypass_profile_sub=True,
+                sub_factor=1, upscale=False,
             )
 
         ratio = float(layer_sub) / float(composite_sub)
@@ -540,7 +540,7 @@ class WorldChunkProvider(BaseChunkProvider):
         coarse = gen.sample_grid(
             ox, oy, coarse_w, coarse_h,
             step=step * ratio, tile_size=0,
-            upscale=False, bypass_profile_sub=True,
+            sub_factor=1, upscale=False,
         )
         return self._upsample_fencepost(coarse, width, height, ratio)
 
