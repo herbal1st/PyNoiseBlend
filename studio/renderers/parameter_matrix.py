@@ -6,6 +6,7 @@ import pygame
 import config
 from studio.matrix_tuner import (
     MATRIX_ROW_COUNT,
+    ROW_BUDGET,
     ROW_LACUNARITY,
     ROW_OCTAVES,
     ROW_PERSIST,
@@ -72,11 +73,18 @@ def draw_parameter_matrix(
     rows = list(_BASE_ROWS)
     if is_mode_world:
         rows.append((ROW_WORLD_SEED, "WORLD SEED:"))
+        rows.append((ROW_BUDGET, "BUDGET    :"))
 
     for row_idx, (row_id, row_lbl) in enumerate(rows):
         ry = y + pad + ((row_idx + 1) * line_h)
         lbl_surf = font.render(row_lbl, True, config.COLOR_HUD_TEXT_NORMAL)
         screen.blit(lbl_surf, (x + pad, ry))
+
+        if row_id == ROW_BUDGET and is_mode_world:
+            _draw_budget_cell_wide(
+                screen, font, state, x, ry, pad, lbl_w, col_w, line_h
+            )
+            continue
 
         if row_id == ROW_WORLD_SEED:
             _draw_world_seed_cell(
@@ -216,6 +224,44 @@ def _draw_matrix_cell(
     screen.blit(t_surf, (cx + 4, ry))
 
 
+def _draw_budget_cell_wide(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    state: StudioState,
+    x: int,
+    ry: int,
+    pad: int,
+    lbl_w: int,
+    col_w: int,
+    line_h: int,
+) -> None:
+    """Renders the elevation budget cell stretched across all columns."""
+    cx = x + pad + lbl_w
+    cell_w = (col_w * 3) - 6
+    cell_rect = pygame.Rect(cx, ry - 1, cell_w, line_h - 1)
+    for col_idx in range(3):
+        state.matrix_hitboxes[(ROW_BUDGET, col_idx)] = cell_rect
+
+    is_focused = state.selected_matrix_row == ROW_BUDGET
+    val_text = f"[ {state.crust_budget:.2f} C / {state.relief_budget:.2f} R ]"
+    text_col = (
+        config.COLOR_INPUT_ACTIVE
+        if is_focused
+        else config.COLOR_HUD_TEXT_NORMAL
+    )
+
+    if is_focused:
+        pygame.draw.rect(
+            screen,
+            config.COLOR_SELECTION,
+            cell_rect,
+            2,
+        )
+
+    t_surf = font.render(val_text, True, text_col)
+    screen.blit(t_surf, (cx + 4, ry))
+
+
 def _draw_world_seed_cell(
     screen: pygame.Surface,
     font: pygame.font.Font,
@@ -272,6 +318,7 @@ def _format_cell_value(
     """Formats cell display string matching the active parameter."""
     if is_silenced:
         return "[ Silenced ]"
+
     if prof is None:
         return "[ None ]"
 

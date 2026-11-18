@@ -23,7 +23,8 @@ LIGHT_ROW_AMBIENT: int = 6
 LIGHT_ROW_ORBIT_SPEED: int = 7
 LIGHT_ROW_TIME: int = 8
 LIGHT_ROW_EXPOSURE: int = 9
-LIGHT_MATRIX_ROW_COUNT: int = 10
+LIGHT_ROW_BUDGET: int = 10
+LIGHT_MATRIX_ROW_COUNT: int = 11
 
 LIGHT_ORBIT_SCALES: Tuple[float, ...] = (0.0, 0.5, 1.0, 2.0, 4.0)
 
@@ -38,6 +39,7 @@ _SOLAR_ROWS: Tuple[Tuple[int, str], ...] = (
     (LIGHT_ROW_ORBIT_SPEED, "ORBIT SPD :"),
     (LIGHT_ROW_TIME, "TIME/DAY  :"),
     (LIGHT_ROW_EXPOSURE, "EXPOSURE  :"),
+    (LIGHT_ROW_BUDGET, "BUDGET    :"),
 )
 
 
@@ -62,6 +64,8 @@ class RendererLighting(BaseChunkRenderer):
         self._last_net_enabled: bool = state.net_enabled
         self._last_tile_size: int = state.tile_size
         self._last_tile_stepping: bool = state.tile_stepping_enabled
+        self._last_crust_budget: float = state.crust_budget
+        self._last_relief_budget: float = state.relief_budget
         self._last_struct_sig: Tuple = self._compute_struct_signature(state)
         self._last_scale_sig: Tuple = self._compute_scale_signature(state)
 
@@ -251,6 +255,8 @@ class RendererLighting(BaseChunkRenderer):
             chunk_profile=state.active_chunk_profile,
             noise_profiles=profiles,
             strata_lut=active_lut,
+            crust_budget=state.crust_budget,
+            relief_budget=state.relief_budget,
             formula_override=state.formula,
             world_seed_override=seed,
             base_profile_key=b_k,
@@ -283,6 +289,10 @@ class RendererLighting(BaseChunkRenderer):
         )
         net_changed = state.net_enabled != self._last_net_enabled
         palette_changed = pal_name != self._last_palette_name
+        budget_changed = (
+            abs(state.crust_budget - self._last_crust_budget) > 1e-4
+            or abs(state.relief_budget - self._last_relief_budget) > 1e-4
+        )
 
         struct_sig = self._compute_struct_signature(state)
         if struct_sig != self._last_struct_sig:
@@ -295,7 +305,16 @@ class RendererLighting(BaseChunkRenderer):
             self._last_net_enabled = state.net_enabled
             self._last_tile_size = state.tile_size
             self._last_tile_stepping = state.tile_stepping_enabled
+            self._last_crust_budget = state.crust_budget
+            self._last_relief_budget = state.relief_budget
             return
+
+        if budget_changed:
+            self.provider.set_budget(state.crust_budget, state.relief_budget)
+            self._last_crust_budget = state.crust_budget
+            self._last_relief_budget = state.relief_budget
+            if not state.is_scrubbing:
+                self._mark_chunks_stale()
 
         scale_sig = self._compute_scale_signature(state)
         if scale_sig != self._last_scale_sig:
@@ -467,6 +486,10 @@ class RendererLighting(BaseChunkRenderer):
             return f"[ {state.light_time_ratio:.2f} ]"
         if row_id == LIGHT_ROW_EXPOSURE:
             return f"[ {state.light_exposure:.2f} ]"
+        if row_id == LIGHT_ROW_BUDGET:
+            return (
+                f"[ {state.crust_budget:.2f} C / {state.relief_budget:.2f} R ]"
+            )
         if row_id == LIGHT_ROW_SCALE:
             _, _, profiles, b_k, _, _, _, zoom_r = self._resolve_world_source(
                 state

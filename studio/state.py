@@ -30,6 +30,9 @@ class StudioState:
     selected_matrix_row: int = 1
     selected_matrix_col: int = 0
 
+    crust_budget: float = config.CRUST_BUDGET
+    relief_budget: float = config.RELIEF_BUDGET
+
     base_cycles: float = config.DEFAULT_BASE_CYCLES
     relief_cycles: float = config.DEFAULT_RELIEF_CYCLES
     crust_cycles: float = config.DEFAULT_CRUST_CYCLES
@@ -218,6 +221,15 @@ class StudioState:
         idx = (self.light_world_source_index - 1) % len(self.world_keys)
         return self.world_keys[idx]
 
+    def set_crust_budget(self, new_crust: float) -> None:
+        """Updates crust and relief budget within safe clamping bounds."""
+        clamped = max(
+            config.CRUST_BUDGET_MIN, min(config.CRUST_BUDGET_MAX, new_crust)
+        )
+        self.crust_budget = round(clamped, 4)
+        self.relief_budget = round(1.0 - self.crust_budget, 4)
+        self.mark_scrubbing()
+
     def get_layer_profile_key(self, col: int) -> Optional[str]:
         """Returns the noise profile key bound to given layer column."""
         if col == 0:
@@ -240,7 +252,7 @@ class StudioState:
         self.is_editing_seed = True
         self.editing_seed_coord = (row, col)
 
-        if row == 7:
+        if row == 8:
             self.seed_input_buffer = str(self.world_seed)
         else:
             prof = (
@@ -262,7 +274,7 @@ class StudioState:
             return
 
         row, col = self.editing_seed_coord
-        if row == 7:
+        if row == 8:
             self.world_seed = val
         else:
             prof = (
@@ -329,6 +341,9 @@ class StudioState:
             self.crust_cycles = config.DEFAULT_CRUST_CYCLES
             self.crust_offset_x = 0.0
             self.crust_offset_y = 0.0
+        if all_channels:
+            self.crust_budget = config.CRUST_BUDGET
+            self.relief_budget = config.RELIEF_BUDGET
         self.mark_discrete_change()
 
     def cycle_formula_1d(self, direction: int) -> None:

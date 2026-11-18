@@ -23,9 +23,13 @@ DEFAULT_NET_BANDWIDTH: float = 0.005  # fraction
 COLOR_NET_BACKGROUND: Tuple[int, int, int] = (10, 12, 18)  # rgb
 
 # ------ Mathematical Elevation Budgets ------
-CRUST_BUDGET: float = 0.4  # fraction
-RELIEF_BUDGET: float = 0.6  # fraction
+CRUST_BUDGET: float = 0.40  # fraction
+RELIEF_BUDGET: float = 0.60  # fraction
 MIN_RELIEF_FACTOR: float = 0.05  # fraction
+CRUST_BUDGET_MIN: float = 0.05  # fraction
+CRUST_BUDGET_MAX: float = 0.95  # fraction
+BUDGET_SCRUB_RATE: float = 0.50  # rate/sec
+MOUSE_BUDGET_SENSITIVITY: float = 0.0015  # rate/px
 
 # ------ Wave Frequency Defaults ------
 DEFAULT_BASE_CYCLES: float = 6.0  # cycles

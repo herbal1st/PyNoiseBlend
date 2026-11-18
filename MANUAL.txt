@@ -97,21 +97,43 @@ COLOR_NET_BACKGROUND          : Slate background color drawn behind contour
 
 [MATHEMATICAL ELEVATION BUDGETS]
 -------------------------------------------------------------------------------
-CRUST_BUDGET                  : Maximum height share reserved for Continental
-                                Crust. In budget-based formulas, CRUST_BUDGET
-                                + RELIEF_BUDGET equals 1.0. This guarantees
-                                mountains never flatten out against a ceiling,
-                                while valleys stay naturally elevated inland.
+CRUST_BUDGET                  : Initial startup height share reserved for
+                                Continental Crust (broad tectonic plates). In
+                                dynamic formulas, Crust Budget + Relief Budget
+                                strictly equals 1.0. This guarantees mountains
+                                never flatten against a ceiling, while inland
+                                valleys stay naturally elevated above sea level.
                                 Metric: Height fraction [0.0 - 1.0] (float).
 
-RELIEF_BUDGET                 : Maximum height share reserved for local base
-                                detail hills and mountain peaks.
+RELIEF_BUDGET                 : Initial startup height share reserved for local
+                                base detail hills and mountain peaks.
                                 Metric: Height fraction [0.0 - 1.0] (float).
 
 MIN_RELIEF_FACTOR             : Safety floor ensuring that even in the lowest,
                                 flattest plains, tiny ground undulations do
                                 not vanish into total flatness.
                                 Metric: Multiplier floor [0.0 - 1.0] (float).
+
+CRUST_BUDGET_MIN              : Lowest allowed share for Continental Crust when
+                                scrubbing the budget live. Prevents crust from
+                                hitting zero so landmasses maintain a baseline.
+                                Metric: Fraction floor [0.0 - 1.0] (float).
+
+CRUST_BUDGET_MAX              : Highest allowed share for Continental Crust
+                                when scrubbing live. Leaves room for at least
+                                some local hill and mountain relief.
+                                Metric: Fraction ceiling [0.0 - 1.0] (float).
+
+BUDGET_SCRUB_RATE             : Speed at which the Crust/Relief budget split
+                                shifts per second when holding Left or Right
+                                arrow keys in Modes 1, 2, 4, and 5.
+                                Metric: Fraction change per second (float).
+
+MOUSE_BUDGET_SENSITIVITY      : Gentle, dampened responsiveness scaling when
+                                scrubbing the Elevation Budget via mouse drag.
+                                Prevents sudden large jumps if frame pacing
+                                drops slightly on lower-spec computers.
+                                Metric: Rate per pixel (float).
 
 
 [WAVE FREQUENCY DEFAULTS]
@@ -235,11 +257,12 @@ LACUNARITY_STEP_RATE          : Speed at which lacunarity shifts per second
 [INTERACTIVE SCRUBBING THROTTLING]
 -------------------------------------------------------------------------------
 SCRUB_SUB_SAMPLE_FACTOR       : Lightweight grid divider used while actively
-                                dragging offsets or zooming feature scales.
-                                Evaluating a coarser grid cuts workload by over
-                                90% for fluid 60 FPS previews; in Relief Net
-                                view, coarse-cell culling keeps 1px isolines
-                                sharp before snapping back to full detail.
+                                dragging offsets, zooming feature scales, or
+                                scrubbing elevation budgets. Evaluating a
+                                coarser grid cuts workload by over 90% for
+                                fluid 60 FPS previews; in Relief Net view,
+                                coarse-cell culling keeps 1px isolines sharp
+                                before snapping back to full detail.
                                 Metric: Integer grid divider (int).
 
 SCRUB_SETTLE_DELAY            : Brief rest period after releasing a keyboard

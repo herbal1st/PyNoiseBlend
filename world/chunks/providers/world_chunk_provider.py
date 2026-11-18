@@ -24,6 +24,8 @@ class WorldChunkProvider(BaseChunkProvider):
         chunk_profile: ChunkProfile,
         noise_profiles: Dict[str, NoiseProfile],
         strata_lut: NDArray[np.uint8],
+        crust_budget: float,
+        relief_budget: float,
         formula_override: Optional[FormulaPreset] = None,
         world_seed_override: Optional[int] = None,
         base_profile_key: Optional[str] = None,
@@ -52,6 +54,9 @@ class WorldChunkProvider(BaseChunkProvider):
             if world_seed_override is not None
             else world_profile.world_seed
         )
+
+        self.crust_budget: float = crust_budget
+        self.relief_budget: float = relief_budget
 
         self.base_profile_key: str = (
             base_profile_key or world_profile.base_noise_profile
@@ -86,6 +91,11 @@ class WorldChunkProvider(BaseChunkProvider):
             if self.formula.uses_crust
             else None
         )
+
+    def set_budget(self, crust_budget: float, relief_budget: float) -> None:
+        """Updates elevation budgets live without re-instantiating engines."""
+        self.crust_budget = crust_budget
+        self.relief_budget = relief_budget
 
     def set_compute_gradients(self, enabled: bool) -> None:
         """Toggles slope gradient calculation during chunk baking."""
@@ -485,7 +495,9 @@ class WorldChunkProvider(BaseChunkProvider):
                 if self.formula.uses_crust and self.crust_noise is not None
                 else np.zeros_like(b)
             )
-            raw = self.formula.func(b, r, c)
+            raw = self.formula.func(
+                b, r, c, self.crust_budget, self.relief_budget
+            )
             return np.clip(raw, 0.0, 1.0).astype(np.float32)
 
         base_sub = self.base_noise.profile.sub_sample_factor
@@ -512,7 +524,9 @@ class WorldChunkProvider(BaseChunkProvider):
         else:
             c = np.zeros_like(b)
 
-        raw = self.formula.func(b, r, c)
+        raw = self.formula.func(
+            b, r, c, self.crust_budget, self.relief_budget
+        )
         return np.clip(raw, 0.0, 1.0).astype(np.float32)
 
     def _sample_layer_grid(

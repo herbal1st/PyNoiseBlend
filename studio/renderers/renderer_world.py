@@ -23,6 +23,8 @@ class RendererWorld(BaseChunkRenderer):
             chunk_profile=state.active_chunk_profile,
             noise_profiles=state.working_noise_profiles,
             strata_lut=active_lut,
+            crust_budget=state.crust_budget,
+            relief_budget=state.relief_budget,
             formula_override=state.formula,
             world_seed_override=state.world_seed,
             base_profile_key=state.world_base_profile_key,
@@ -50,6 +52,8 @@ class RendererWorld(BaseChunkRenderer):
         )
         self._last_formula_name: str = state.formula.name
         self._last_world_seed: int = state.world_seed
+        self._last_crust_budget: float = state.crust_budget
+        self._last_relief_budget: float = state.relief_budget
         self._last_base_key: str = state.world_base_profile_key
         self._last_macro_key: str = state.world_macro_profile_key
         self._last_crust_key: str = state.world_crust_profile_key
@@ -97,6 +101,10 @@ class RendererWorld(BaseChunkRenderer):
             or state.world_macro_profile_key != self._last_macro_key
             or state.world_crust_profile_key != self._last_crust_key
         )
+        budget_changed = (
+            abs(state.crust_budget - self._last_crust_budget) > 1e-4
+            or abs(state.relief_budget - self._last_relief_budget) > 1e-4
+        )
 
         tile_changed = (
             state.tile_size != self._last_tile_size
@@ -122,6 +130,13 @@ class RendererWorld(BaseChunkRenderer):
         if world_profile_changed:
             self._rebuild_provider(state, active_lut)
             return
+
+        if budget_changed:
+            self.provider.set_budget(state.crust_budget, state.relief_budget)
+            self._last_crust_budget = state.crust_budget
+            self._last_relief_budget = state.relief_budget
+            if not state.is_scrubbing:
+                self._mark_chunks_stale()
 
         if grad_changed:
             self.provider.set_compute_gradients(state.compute_gradients)
@@ -211,6 +226,8 @@ class RendererWorld(BaseChunkRenderer):
             chunk_profile=state.active_chunk_profile,
             noise_profiles=state.working_noise_profiles,
             strata_lut=active_lut,
+            crust_budget=state.crust_budget,
+            relief_budget=state.relief_budget,
             formula_override=state.formula,
             world_seed_override=state.world_seed,
             base_profile_key=state.world_base_profile_key,
@@ -236,6 +253,8 @@ class RendererWorld(BaseChunkRenderer):
         self._last_world_profile_key = state.active_world_profile.profile_name
         self._last_formula_name = state.formula.name
         self._last_world_seed = state.world_seed
+        self._last_crust_budget = state.crust_budget
+        self._last_relief_budget = state.relief_budget
         self._last_base_key = state.world_base_profile_key
         self._last_macro_key = state.world_macro_profile_key
         self._last_crust_key = state.world_crust_profile_key

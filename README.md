@@ -70,7 +70,8 @@ Key Architectural Pillars:
   configuration files on disk remain pristine.
 - Interactive 2D Parameter Matrix Deck: Modes 3 and 4 feature an on-screen
   spreadsheet-style control deck exposing all noise settings (Profile, Scale,
-  Octaves, Decay, Lacunarity, Sub-sampling, and Seeds) for live tuning.
+  Octaves, Decay, Lacunarity, Sub-sampling, Seeds, and Elevation Budget) for
+  live tuning.
 - Direct Per-Layer Sub-Sampling Independence: Base Detail, Relief Multiplier,
   and Continental Crust maintain 100% independent control over coarse sampling
   dividers (1x, 2x, 4x, 8x). What you select in the matrix evaluates directly,
@@ -79,6 +80,11 @@ Key Architectural Pillars:
   predictable contract. Functions request either a compact downsampled grid
   or a full-resolution upscaled surface directly via an explicit sub_factor
   parameter, eliminating ambiguous bypass flags or hidden overrides.
+- Live Dynamic Elevation Budgeting (Zero-Clipping Invariant): The height split
+  between broad tectonic foundation (Crust) and local mountain peaks (Relief)
+  is live and interactive across Modes 1, 2, 4, and 5. Because Crust and Relief
+  shares strictly sum to 1.0, mountain summits never hit a flat ceiling, and
+  inland valleys stay naturally elevated above sea level.
 - Two-Tier Scrubbing & Progressive Refinement: While dragging sliders or
   zooming scales, viewports switch temporarily to a fast, lightweight preview
   grid for fluid 60 FPS feedback. Once tuning stops, full detail snaps back,
@@ -91,10 +97,6 @@ Key Architectural Pillars:
 - Color-Before-Expand Surface Scaling: Coarse preview grids and retro tiles are
   colored while small and stretched up by hardware scaling, avoiding millions
   of redundant per-pixel color lookups.
-- Mathematical Elevation Budgeting (Zero-Clipping Invariant): Total terrain
-  height is divided into additive and multiplicative shares so mountain peaks
-  never flatten against a 1.0 ceiling, and inland valleys stay naturally
-  elevated above sea level.
 - Triple-Engine Procedural Suite: Supports Simplex, Perlin, and Value Noise,
   letting you trade organic flowing ridges for raw generation speed.
 - 1-Pixel Gradient Halo: Each chunk samples an invisible 1-pixel border ring
@@ -188,7 +190,7 @@ hills) is handled in utils/noise/noise_generator.py:
                        multiples and slices by sub-tile offsets for seamless
                        boundaries.
 
-Multi-Layer Terrain Math & Elevation Budgeting:
+Multi-Layer Terrain Math & Dynamic Elevation Budgeting:
 In real geography, mountain ranges rise atop broad tectonic plates, while
 oceans and beaches stay flat and low. Simply multiplying noise layers together
 causes a classic procedural bug: valleys inside high mountain ranges plunge all
@@ -196,10 +198,10 @@ the way down to sea level, punching unnatural holes through continents.
 
 PyNoiseBlend solves this by dividing the [0.0, 1.0] elevation range into a
 strict mathematical "Elevation Budget":
-  CRUST_BUDGET + RELIEF_BUDGET = 1.0   (for example: 0.35 crust + 0.65 relief)
+  Crust Budget (CB) + Relief Budget (RB) = 1.0   (e.g., 0.40 C / 0.60 R)
 
 The Three-Layer Master Formula:
-  Height = (CRUST_BUDGET * C) + (RELIEF_BUDGET * B * ReliefEnvelope)
+  Height = (CB * C) + (RB * B * ReliefEnvelope)
 
 In Everyday Terms:
 - Base Detail (B): The local topography—individual hills, valleys, and ridges.
@@ -207,7 +209,11 @@ In Everyday Terms:
   into tall mountain ranges versus where they flatten into gentle plains.
 - Continental Crust (C): The broad tectonic foundation lifting whole
   continents above water or dropping ocean basins.
-- Zero-Clipping Guarantee: Because Crust and Relief shares sum to 1.0, peaks
+- Live Interactive Control: You can adjust this split live in Modes 1, 2, 4,
+  and 5. Shifting more budget to Crust lifts landmasses out of the sea for broad
+  continents; shifting more budget to Relief plunges continents and makes
+  towering island spires rise from the ocean.
+- Zero-Clipping Guarantee: Because CB + RB always sums to 1.0, mountain summits
   never hit a flat ceiling, while inland valleys stay naturally elevated above
   sea level on high ground.
 
@@ -216,7 +222,7 @@ To save ~33% calculation time on low-power hardware—or to craft cleaner terrai
 shapes—the five 2-layer formulas silence the middle Relief layer (R) and pair
 Base Detail (B) directly with Continental Crust (C). For example, Factored
 Virtual Crust uses C to lift both the ground floor and mountain amplitude:
-  Height = C * (CRUST_BUDGET + (RELIEF_BUDGET * B))
+  Height = C * (CB + (RB * B))
 When C is low, terrain drops into flat ocean basins. As C rises, both valley
 floors and mountain peaks lift together—preventing sea-level cuts using only
 two noise layers.
@@ -272,9 +278,9 @@ ChunkManager is purely a spatial memory and coordinate streaming engine:
   shared LUT storage, visual mode settings, surface baking, and tile-contour
   halo cropping for both WorldChunkProvider (composite worlds) and
   NoiseChunkProvider (raw noise).
-- Providers expose set_color_lut(), rebake_chunk_surface(), and
-  sample_viewport_field() so color changes instantly repaint cached chunks in
-  RAM without recomputing noise.
+- Providers expose set_color_lut(), rebake_chunk_surface(), set_budget(), and
+  sample_viewport_field() so color and budget changes instantly repaint cached
+  chunks in RAM without recomputing underlying noise permutation tables.
 
 Center-Outward Progressive Chunk Refinement (world/chunks/chunk_manager.py):
 After live parameter edits end, rebuilding ~200 chunks in a single frame would
@@ -355,12 +361,15 @@ using a cached two-step ResamplePlan (blending horizontally first, then
 vertically, with zero-allocation bilinear_resample_into() support).
 
 Interactive Scrubbing & Settle-Debounce Pipeline (studio/state.py):
-To keep live zooming and parameter dragging fluid while preserving crisp
-static quality:
-- Active Scrubbing: Continuous tuning (Scale, Decay, Lacunarity) engages
-  scrubbing mode and resets a short settle timer (SCRUB_SETTLE_DELAY). Plain
-  camera panning (WASD or unmodified Left-Drag in Modes 3–5) never triggers
-  scrubbing because cached chunks already pan at 60 FPS.
+To keep live zooming, budget scrubbing, and parameter dragging fluid while
+preserving crisp static quality:
+- Active Scrubbing: Continuous tuning (Scale, Budget, Decay, Lacunarity)
+  engages scrubbing mode and resets a short settle timer (SCRUB_SETTLE_DELAY).
+  Plain camera panning (WASD or unmodified Left-Drag in Modes 3–5) never
+  triggers scrubbing because cached chunks already pan at 60 FPS.
+- Dampened Mouse Budget Dragging: Scrubbing the Crust/Relief budget uses a
+  gentle sensitivity curve (MOUSE_BUDGET_SENSITIVITY = 0.0015), preventing
+  abrupt height jumps when frame pacing fluctuates on lower-spec hardware.
 - Discrete Single-Tap Decoupling: Discrete settings (Octaves, Profile,
   Sub-sampling, Seeds) advance strictly one step per key tap or click, forcing
   one clean rebuild without flooding CPU caches.
@@ -427,15 +436,16 @@ turning Greyscale into a negative view or flipping ocean/mountain polarity.
 PyNoiseBlend includes a five-mode interactive workbench under studio/:
 
 The Modular Studio Architecture (studio/):
-- Session State Store (state.py): Coordinates shared formulas, palettes,
-  camera coordinates, active mode flags, scrub timers, and the seed typing
-  buffer.
+- Session State Store (state.py): Coordinates shared formulas, budgets,
+  palettes, camera coordinates, active mode flags, scrub timers, and the seed
+  typing buffer.
 - Wave & Matrix Tuning Controllers (wave_tuner.py, matrix_tuner.py):
-  * wave_tuner.py isolates Mode 1/2 channel validity, focus cycling, wave
-    offset shifting, and cycle frequency scaling with 2D center anchoring.
+  * wave_tuner.py isolates Mode 1/2 channel validity, focus cycling (UP/DOWN
+    for rows, SHIFT+UP/DOWN for channels), wave offset shifting, and cycle
+    frequency scaling with 2D center anchoring.
   * matrix_tuner.py isolates Mode 3/4 row/column navigation, world-layer
-    offset shifting, parameter stepping, camera-anchored scale math, and
-    noise/world resets.
+    offset shifting, parameter stepping, camera-anchored scale math, dynamic
+    budget scrubbing, and noise/world resets.
 - Input Router (input_handler.py): Pure Pygame event polling and continuous
   held-key handling dispatching actions to wave_tuner, matrix_tuner, and state.
 
@@ -463,7 +473,9 @@ The 5 Studio Viewports (studio/renderers/):
      with a flat zero baseline while Panel 3 (Crust) remains active.
    - Direct Panel Selection: Click any active Panel 1–4 (or cycle with
      UP/DOWN) to focus it; clicks on silenced Panel 2 are ignored. Selecting
-     Panel 4 ([ALL ACTIVE]) scales or resets all active layers together.
+     Panel 4 ([ALL ACTIVE]) scales all active layers together, while holding
+     Left/Right or dragging smoothly tunes the dynamic elevation budget:
+     BUDGET: [ 0.40 C / 0.60 R ].
    - Dual Hypsometric Fill / Vector Trace: Standard mode fills under Panel 4's
      curve with vertical LUT color ribbons; Net mode paints a multi-colored
      curve in one vectorized NumPy surfarray pass with zero Python line loops.
@@ -480,12 +492,17 @@ The 5 Studio Viewports (studio/renderers/):
        * RADIAL Perspective (Default): Concentric radial island/pond dome.
        * WARPED Perspective: Shears Base coordinates horizontally, bending
          straight stripes into winding mountain ranges.
+   - Dual-Row Channel & Budget Deck:
+     * UP / DOWN: Switches focus between the top Channel strip and the bottom
+       Elevation Budget line: BUDGET : [ 0.40 C / 0.60 R ].
+     * SHIFT + UP / DOWN: Cycles horizontal channel focus across Base, Relief,
+       and Crust layers.
 
 3. Mode 3: Raw Noise Inspector (renderer_noise.py):
    - Streams isolated noise builds from profiles/noise.yaml via ChunkManager.
-   - Interactive Parameter Matrix Deck: Displays a single-column table exposing
-     Profile, Scale, Octaves, Persist (Decay), Lacunarity, Sub-sampling, and
-     Seed for the active raw noise engine.
+   - Interactive Parameter Matrix Deck: Displays a streamlined single-column
+     table exposing Profile, Scale, Octaves, Persist (Decay), Lacunarity,
+     Sub-sampling, and Seed for the active raw noise engine.
    - Press [B / SHIFT + B] or click the PROFILE cell to cycle raw noise
      presets.
    - Click the SEED cell (or press ENTER on it) to type a seed directly.
@@ -500,14 +517,14 @@ The 5 Studio Viewports (studio/renderers/):
      * Middle column (RELIEF) automatically dims and shows [ Silenced ] when
        a 2-layer formula is selected.
      * Rows: PROFILE, SCALE, OCTAVES, PERSIST, LACUNARITY, SUB-SAMPLE, SEED,
-       and a dedicated master WORLD SEED row at the base.
+       WORLD SEED, and the master base row BUDGET: [ 0.40 C / 0.60 R ].
    - Profile Rebinding: Click PROFILE in any column to swap which noise preset
      drives that specific layer (e.g. swap Crust from Simplex to Value noise).
    - Proportional All-Layer Zoom: Right-dragging or holding Left/Right on
      the SCALE row without Shift scales Base, Relief, and Crust simultaneously
      around the camera center. Holding [SHIFT] scales only the focused column.
-   - Click any SEED cell or the WORLD SEED cell (or press ENTER on it) to type
-     a new seed directly.
+   - Master Elevation Budget: Scrubbing the bottom BUDGET row shifts tectonic
+     crust height versus mountain relief across the entire planet live.
 
 5. Mode 5: Solar Lighting Studio (renderer_lighting.py):
    - Inherits your live Mode 4 world (MODE 4 (LIVE)) by default—or lets you
@@ -520,17 +537,15 @@ The 5 Studio Viewports (studio/renderers/):
      exact 1:1 tile-centroid lighting with nearest-neighbor scaling so every
      tile is cleanly flat-shaded with zero stripes.
    - Hybrid Gradient Sampling During Refinement: While actively scrubbing
-     Scale, slopes are computed straight from the compact scrub preview
-     heightfield. Once you stop scaling and chunks progressively rebuild from
-     the center outward, ViewportHeightSampler fills loaded regions with crisp
-     chunk slopes and seamlessly pulls world-anchored scrub slopes for any
-     unloaded outer chunks—keeping shadows locked 1:1 while panning and
-     keeping sun orbits active.
-   - Solar Control Deck: Ordered as Preset, World source, unified Scale
-     (focused by default whenever switching to Mode 5), Sun Azimuth (0-360
-     deg), Sun Altitude (0-90 deg), Hillshade Contrast, Ambient Ratio, Orbit
-     Speed (PAUSED to 4.0x), Time-of-Day, and Exposure (neutral flat-ground
-     brightness baseline).
+     Scale or Budget, slopes are computed straight from the compact scrub
+     preview heightfield. Once you stop scaling and chunks progressively rebuild
+     from the center outward, ViewportHeightSampler fills loaded regions with
+     crisp chunk slopes and seamlessly pulls world-anchored scrub slopes for any
+     unloaded outer chunks.
+   - Solar Control Deck: Ordered as Preset, World source, unified Scale, Sun
+     Azimuth (0-360 deg), Sun Altitude (0-90 deg), Hillshade Contrast, Ambient
+     Ratio, Orbit Speed (PAUSED to 4.0x), Time-of-Day, Exposure, and the master
+     base row BUDGET: [ 0.40 C / 0.60 R ].
 
 
 [7.0 GLOBAL TILE STEPPING & COARSE CENTROID EVALUATION]
@@ -649,6 +664,8 @@ VIEWPORT & GENERAL NAVIGATION:
     UP / DOWN           : Cycle active wave panel/channel focus (Modes 1 & 2)
                           or move parameter/solar deck row (Modes 3, 4, & 5).
 
+    SHIFT + UP / DOWN   : Cycle layer channels (Mode 2) or layer columns (Mode 4).
+
     SPACE / SHIFT+SPACE : Step tile size coarser / finer (OFF -> 4 -> 8 -> 16).
 
     C / SHIFT + C       : Cycle active color palette forward / backward.
@@ -658,7 +675,8 @@ VIEWPORT & GENERAL NAVIGATION:
     N                   : Toggle Topographical Relief Net / 1D Vector trace.
 
     R                   : Reset ALL parameters, wave cycles, noise profiles,
-                          lighting settings, and camera coordinates to defaults.
+                          elevation budget, lighting settings, and camera
+                          coordinates to defaults.
     SHIFT + R           : Reset ONLY the focused layer back to defaults.
 
     ESCAPE / CLOSE      : Clean application shutdown (or cancels seed typing).
@@ -668,7 +686,8 @@ MATRIX DECK CONTROLS (MODES 3 & 4):
 -------------------------------------------------------------------------------
     UP / DOWN           : Move row focus across parameters:
                           Profile -> Scale -> Octaves -> Persist ->
-                          Lacunarity -> Sub-Sample -> Seed -> World Seed.
+                          Lacunarity -> Sub-Sample -> Seed ->
+                          World Seed (Mode 4) -> Budget (Mode 4).
 
     SHIFT + UP / DOWN   : Move column focus between layers in Mode 4:
                           [ BASE (D) | RELIEF (M) | CRUST (C) ]
@@ -694,10 +713,12 @@ MATRIX DECK CONTROLS (MODES 3 & 4):
     RIGHT DRAG          : - On Scale: Dragging Right zooms IN and Left zooms
                             OUT across ALL active layers around camera center.
                             (With [SHIFT]: zooms only the focused layer).
+                          - On Budget: Smooth, dampened scrub of Crust/Relief split.
                           - On Persist / Lacunarity: Smooth continuous scrub.
 
     HOLD LEFT / RIGHT   : Keyboard mirror of Right-Drag:
                           - On Scale: Right zooms IN; Left zooms OUT.
+                          - On Budget: Shifts Crust/Relief elevation budget.
                           - On Persist / Lacunarity: Continuous scrub.
                           - (With [SHIFT] on Scale: zooms focused layer only).
 
@@ -711,22 +732,23 @@ MATRIX DECK CONTROLS (MODES 3 & 4):
 
 SOLAR CONTROL DECK CONTROLS (MODE 5):
 -------------------------------------------------------------------------------
-    UP / DOWN           : Move row focus across Preset, World, Scale (default),
-                          Azimuth, Altitude, Contrast, Ambient, Orbit Spd,
-                          Time/Day, and Exposure.
+    UP / DOWN           : Move row focus across Preset, World, Scale, Azimuth,
+                          Altitude, Contrast, Ambient, Orbit Spd, Time/Day,
+                          Exposure, and Budget.
 
     LEFT MOUSE CLICK    : - On Discrete Rows (Preset, World, Orbit Spd):
                             Steps forward (+1).
                           - On Continuous Rows (Scale, Azimuth, Altitude,
-                            Contrast, Ambient, Time/Day, Exposure): Focuses row
-                            for dragging.
+                            Contrast, Ambient, Time/Day, Exposure, Budget):
+                            Focuses row for dragging.
 
     RIGHT MOUSE CLICK   : On Discrete Rows: Steps backward (-1).
     (or SHIFT + LMB)
 
     RIGHT DRAG /        : Smoothly zooms unified world Scale (Right = zoom in,
     HOLD LEFT / RIGHT     Left = zoom out) or scrubs Azimuth, Altitude,
-                          Contrast, Ambient Ratio, Time-of-Day, or Exposure.
+                          Contrast, Ambient Ratio, Time-of-Day, Exposure, or
+                          Elevation Budget.
 
     TAP LEFT / RIGHT    : Steps discrete rows (Preset, World, Orbit Spd) by 1.
 

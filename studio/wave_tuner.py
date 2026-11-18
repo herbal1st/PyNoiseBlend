@@ -21,7 +21,8 @@ def get_valid_channels(state: "StudioState") -> Tuple[int, ...]:
             channels.append(1)
         if preset.uses_crust:
             channels.append(2)
-        return tuple(channels) if channels else (0,)
+        channels.append(3)
+        return tuple(channels)
 
     formula = state.formula
     channels = [0]
@@ -35,7 +36,16 @@ def get_valid_channels(state: "StudioState") -> Tuple[int, ...]:
 
 
 def move_channel_focus(state: "StudioState", direction: int) -> None:
-    """Moves channel focus across valid inputs for active mode."""
+    """Moves focus vertically between channels and budget, or across panels."""
+    if state.active_mode == 2:
+        if state.selected_panel_index == 3:
+            valid_layers = _get_active_layer_channels(state)
+            state.selected_panel_index = valid_layers[0]
+        else:
+            state.selected_panel_index = 3
+        state.needs_rebuild_2d = True
+        return
+
     channels = get_valid_channels(state)
     if state.selected_panel_index in channels:
         cur_pos = channels.index(state.selected_panel_index)
@@ -48,6 +58,22 @@ def move_channel_focus(state: "StudioState", direction: int) -> None:
         state.needs_rebuild_1d = True
 
 
+def cycle_layer_channel_focus(state: "StudioState", direction: int) -> None:
+    """Cycles horizontal channel focus across active layers with SHIFT."""
+    layers = _get_active_layer_channels(state)
+    if state.selected_panel_index in layers:
+        cur_idx = layers.index(state.selected_panel_index)
+        next_idx = (cur_idx + direction) % len(layers)
+        state.selected_panel_index = layers[next_idx]
+    else:
+        state.selected_panel_index = layers[0]
+
+    if state.active_mode == 1:
+        state.needs_rebuild_1d = True
+    elif state.active_mode == 2:
+        state.needs_rebuild_2d = True
+
+
 def clamp_channel_focus(state: "StudioState") -> None:
     """Clamps channel focus to valid channels for the active mode."""
     channels = get_valid_channels(state)
@@ -55,6 +81,8 @@ def clamp_channel_focus(state: "StudioState") -> None:
         state.selected_panel_index = channels[0]
         if state.active_mode == 1:
             state.needs_rebuild_1d = True
+        elif state.active_mode == 2:
+            state.needs_rebuild_2d = True
 
 
 def shift_wave_offsets(
@@ -121,6 +149,19 @@ def scale_wave_cycles(
             state.crust_cycles = new_crust
             if anchor_2d and _is_warped_2layer(state):
                 state.crust_offset_y *= ratio
+
+
+def _get_active_layer_channels(state: "StudioState") -> Tuple[int, ...]:
+    """Returns valid layer channel IDs excluding the budget row."""
+    preset = state.preset_2d
+    channels: List[int] = []
+    if preset.uses_base:
+        channels.append(0)
+    if preset.uses_relief:
+        channels.append(1)
+    if preset.uses_crust:
+        channels.append(2)
+    return tuple(channels) if channels else (0,)
 
 
 def _compute_scaled_cycle(

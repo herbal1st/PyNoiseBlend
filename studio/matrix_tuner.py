@@ -16,7 +16,8 @@ ROW_LACUNARITY: int = 4
 ROW_SUBSAMPLE: int = 5
 ROW_SEED: int = 6
 ROW_WORLD_SEED: int = 7
-MATRIX_ROW_COUNT: int = 8
+ROW_BUDGET: int = 8
+MATRIX_ROW_COUNT: int = 9
 
 
 def is_discrete_matrix_row(row: int) -> bool:
@@ -129,6 +130,11 @@ def step_matrix_param(
             state.cycle_noise_profile(direction)
         return
 
+    if row == ROW_BUDGET and is_mode_world:
+        rate = config.BUDGET_SCRUB_RATE * (dt if dt > 0.0 else 0.05)
+        state.set_crust_budget(state.crust_budget + (float(direction) * rate))
+        return
+
     if row == ROW_WORLD_SEED:
         state.world_seed = (state.world_seed + direction) & 0xFFFFFFFF
         state.mark_discrete_change()
@@ -190,6 +196,8 @@ def reset_world_tuning(state: "StudioState", reset_all: bool) -> None:
         state.world_base_profile_key = wp.base_noise_profile
         state.world_macro_profile_key = wp.macro_noise_profile
         state.world_crust_profile_key = wp.crust_noise_profile
+        state.crust_budget = config.CRUST_BUDGET
+        state.relief_budget = config.RELIEF_BUDGET
 
     layer_keys = (
         state.world_base_profile_key,

@@ -6,6 +6,7 @@ import pygame
 import config
 from studio import matrix_tuner, wave_tuner
 from studio.matrix_tuner import (
+    ROW_BUDGET,
     ROW_SEED,
     ROW_WORLD_SEED,
     is_discrete_matrix_row,
@@ -16,6 +17,7 @@ from studio.renderers.renderer_lighting import (
     LIGHT_ROW_ALTITUDE,
     LIGHT_ROW_AMBIENT,
     LIGHT_ROW_AZIMUTH,
+    LIGHT_ROW_BUDGET,
     LIGHT_ROW_CONTRAST,
     LIGHT_ROW_EXPOSURE,
     LIGHT_ROW_ORBIT_SPEED,
@@ -168,6 +170,11 @@ class InputHandler:
                     matrix_tuner.move_matrix_column(state, direction)
                 else:
                     matrix_tuner.move_matrix_row(state, direction)
+            elif state.active_mode == 2:
+                if shift_held:
+                    wave_tuner.cycle_layer_channel_focus(state, direction)
+                else:
+                    wave_tuner.move_channel_focus(state, direction)
             else:
                 wave_tuner.move_channel_focus(state, direction)
         elif event.key in (pygame.K_LEFT, pygame.K_RIGHT):
@@ -226,6 +233,9 @@ class InputHandler:
             for channel_idx, rect in state.channel_hitboxes.items():
                 if rect.collidepoint(pos):
                     state.selected_panel_index = channel_idx
+                    state.needs_rebuild_2d = True
+                    self.active_mouse_button = button
+                    self.drag_start = pos
                     return
 
         self.active_mouse_button = button
@@ -312,20 +322,33 @@ class InputHandler:
             if state.active_mode == 5:
                 if state.selected_light_row == LIGHT_ROW_SCALE:
                     self._scrub_light_scale(state, factor)
+                elif state.selected_light_row == LIGHT_ROW_BUDGET:
+                    step_val = float(dx) * config.MOUSE_BUDGET_SENSITIVITY
+                    state.set_crust_budget(state.crust_budget + step_val)
                 elif not self._is_discrete_light_row(state.selected_light_row):
                     self._scrub_light_param(state, float(dx) * 0.006)
                 return
 
             if state.active_mode in (3, 4):
                 if not is_discrete_matrix_row(state.selected_matrix_row):
-                    direction = 1 if dx > 0 else -1
-                    matrix_tuner.step_matrix_param(
-                        state,
-                        direction,
-                        factor=factor,
-                        dt=dt,
-                        single_layer=shift_held,
-                    )
+                    if (
+                        state.active_mode == 4
+                        and state.selected_matrix_row == ROW_BUDGET
+                    ):
+                        step_val = float(dx) * config.MOUSE_BUDGET_SENSITIVITY
+                        state.set_crust_budget(state.crust_budget + step_val)
+                    else:
+                        direction = 1 if dx > 0 else -1
+                        matrix_tuner.step_matrix_param(
+                            state,
+                            direction,
+                            factor=factor,
+                            dt=dt,
+                            single_layer=shift_held,
+                        )
+            elif state.active_mode in (1, 2) and state.selected_panel_index == 3:
+                step_val = float(dx) * config.MOUSE_BUDGET_SENSITIVITY
+                state.set_crust_budget(state.crust_budget + step_val)
             else:
                 wave_tuner.scale_wave_cycles(
                     state, factor, single_layer=shift_held
@@ -389,6 +412,9 @@ class InputHandler:
                 step_scale = 1.0 + (config.NOISE_SCALE_ZOOM_RATE * dt)
                 factor = step_scale if move_right else (1.0 / step_scale)
                 self._scrub_light_scale(state, factor)
+            elif state.selected_light_row == LIGHT_ROW_BUDGET:
+                step_val = float(direction) * config.BUDGET_SCRUB_RATE * dt
+                state.set_crust_budget(state.crust_budget + step_val)
             elif not self._is_discrete_light_row(state.selected_light_row):
                 self._scrub_light_param(state, float(direction) * dt)
             return
@@ -396,6 +422,14 @@ class InputHandler:
         if state.active_mode in (3, 4):
             if is_discrete_matrix_row(state.selected_matrix_row):
                 return
+            if (
+                state.active_mode == 4
+                and state.selected_matrix_row == ROW_BUDGET
+            ):
+                step_val = float(direction) * config.BUDGET_SCRUB_RATE * dt
+                state.set_crust_budget(state.crust_budget + step_val)
+                return
+
             step_scale = 1.0 + (config.NOISE_SCALE_ZOOM_RATE * dt)
             factor = step_scale if move_right else (1.0 / step_scale)
             matrix_tuner.step_matrix_param(
@@ -405,6 +439,11 @@ class InputHandler:
                 dt=dt,
                 single_layer=shift_held,
             )
+            return
+
+        if state.active_mode in (1, 2) and state.selected_panel_index == 3:
+            step_val = float(direction) * config.BUDGET_SCRUB_RATE * dt
+            state.set_crust_budget(state.crust_budget + step_val)
             return
 
         step_scale = 1.0 + (config.CYCLE_ZOOM_RATE * dt)
