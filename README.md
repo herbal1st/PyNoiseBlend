@@ -52,6 +52,11 @@ Key Architectural Pillars:
   elevation math once, converts it into a display-ready picture in RAM, and
   stamps it onto the screen. When standing still or panning across loaded
   areas, procedural CPU workload drops to absolute zero.
+- Zero-Copy Baking & Surface Pooling: Chunks paint their color pixels
+  directly into display-ready SDL surfaces without intermediate byte copies.
+  Changing palettes or toggling contour lines updates existing chunk surfaces
+  in place, and unloaded chunks recycle their surfaces into a bounded pool for
+  instant reuse during camera flight.
 - Anchor-Locked Grid Snapping: When a camera moves by fractional amounts,
   neighboring chunks can round to different screen pixels, creating tiny
   1-pixel black cracks. PyNoiseBlend solves this by anchoring visible chunks to
@@ -90,10 +95,12 @@ Key Architectural Pillars:
   grid for fluid 60 FPS feedback. Once tuning stops, full detail snaps back,
   rebuilding chunks smoothly from the center outward under a frame budget.
 - Discrete Single-Tap Input Separation: Step-based settings (Octaves, Profile,
-  Sub-sampling, Seeds) advance strictly once per key tap or click, preventing
-  keyboard auto-repeat floods from bogging down the CPU.
+  Sub-sampling, Seeds, Day Cycle, Lightmap Sub-Sample) advance strictly once
+  per key tap or click, preventing keyboard auto-repeat floods from bogging
+  down the CPU.
 - Click-to-Type Seed Prompt: Clicking any seed cell (or pressing ENTER on it)
-  opens direct numeric entry so you can type exact world seeds on the fly.
+  opens direct numeric entry so you can type exact layer or world seeds on the
+  fly.
 - Color-Before-Expand Surface Scaling: Coarse preview grids and retro tiles are
   colored while small and stretched up by hardware scaling, avoiding millions
   of redundant per-pixel color lookups.
@@ -111,18 +118,20 @@ Key Architectural Pillars:
 - Elliptical Streaming with Margin Clamping: Streams chunks in a screen-shaped
   ellipse with a safety buffer zone (hysteresis) so chunks do not flicker in
   and out of memory near edges, and widescreen corners never show gaps.
-- Screen-Center Anchored Proportional Zoom: Zooming scales all active layers
-  together while shifting offsets so terrain features stay pinned to the
-  center of your screen.
+- Proportional Screen-Center Anchored Zoom: Zooming scales all active layers
+  together while shifting offsets so terrain stays pinned to the screen
+  center. A shared factor clamp stops zooming at the first layer boundary hit,
+  preserving exact Base/Relief/Crust scale ratios at both zoom extremes.
 - Deferred Slope Gradients: In Mode 4, WorldChunkProvider skips slope math
   (np.gradient) and its 1-pixel border halo unless lighting or tiled contour
-  lines actually need them—reclaiming ~25–30% chunk bake speed.
+  lines actually need them—reclaiming ~25-30% chunk bake speed.
 - Single-Pass 3D Solar Hillshading & Hybrid Gradient Sampling: Mode 5 computes
-  3D sunlight direction (compass azimuth + sun altitude), adjustable neutral
-  exposure, and sky tinting on a compact lightmap grid sampled directly from
-  chunks, multiplying it over the screen in one single pygame.BLEND_MULT pass.
-  Unloaded chunk areas blend seamlessly with world-anchored slopes from the
-  preview so shadows never slip out of sync during panning or live sun orbits.
+  3D sunlight direction (compass azimuth + sun altitude), shadow/highlight
+  intensities, adjustable neutral exposure, and sky tinting on a tunable
+  lightmap grid (1x-16x), multiplying it over the screen in one single
+  pygame.BLEND_MULT pass. Unloaded chunk areas blend seamlessly with
+  world-anchored slopes from the preview so shadows never slip during panning
+  or live sun orbits.
 
 
 [2.0 PROCEDURAL GENERATION & MATHEMATICAL WAVE SYNTHESIS]
@@ -248,6 +257,20 @@ A chunk is a localized square patch of the continuous elevation surface:
 - Default dimension: 128x128 pixels (configured in profiles/chunk.yaml).
 - Holds the float32 elevation grid h, slope gradients (gx, gy), and the baked
   SDL image surface ready for instant screen stamping.
+
+Zero-Copy Surface Baking & Recycled Surface Pool:
+Creating and destroying SDL surfaces every time chunks scroll off-screen or
+change colors wastes memory bandwidth. PyNoiseBlend eliminates that overhead:
+- Direct Pixel Blits (BaseChunkProvider): Instead of serializing chunk pixels
+  into temporary byte strings and converting surfaces twice, providers write
+  color arrays directly into display-matched SDL surfaces via
+  pygame.surfarray.blit_array.
+- In-Place Palette & Net Rebakes: Pressing [C], [I], or [N] repaints each
+  chunk's existing surface directly in RAM with zero new surface allocations.
+- Bounded Surface Pool (ChunkManager): When chunks scroll beyond the unload
+  boundary or flush after scrubbing, their surfaces return to a bounded pool
+  (up to 256 surfaces) and are handed directly to incoming chunks on the same
+  frame, dropping runtime panning allocations to near zero.
 
 1-Pixel Halo & Deferred Slope Calculation:
 To measure slope steepness accurately at a chunk's edge, pixels need to peek
@@ -437,15 +460,15 @@ PyNoiseBlend includes a five-mode interactive workbench under studio/:
 
 The Modular Studio Architecture (studio/):
 - Session State Store (state.py): Coordinates shared formulas, budgets,
-  palettes, camera coordinates, active mode flags, scrub timers, and the seed
-  typing buffer.
+  palettes, camera coordinates, active mode flags, scrub timers, lighting
+  overrides, and the seed typing buffer.
 - Wave & Matrix Tuning Controllers (wave_tuner.py, matrix_tuner.py):
   * wave_tuner.py isolates Mode 1/2 channel validity, focus cycling (UP/DOWN
     for rows, SHIFT+UP/DOWN for channels), wave offset shifting, and cycle
     frequency scaling with 2D center anchoring.
   * matrix_tuner.py isolates Mode 3/4 row/column navigation, world-layer
-    offset shifting, parameter stepping, camera-anchored scale math, dynamic
-    budget scrubbing, and noise/world resets.
+    offset shifting, parameter stepping, camera-anchored proportional scale
+    math, dynamic budget scrubbing, and noise/world resets.
 - Input Router (input_handler.py): Pure Pygame event polling and continuous
   held-key handling dispatching actions to wave_tuner, matrix_tuner, and state.
 
@@ -471,14 +494,15 @@ The 5 Studio Viewports (studio/renderers/):
      state changes (needs_rebuild_1d), reducing idle frames to a single blit.
    - Smart Layer Silencing: On 2-layer formulas, Panel 2 (Relief) is silenced
      with a flat zero baseline while Panel 3 (Crust) remains active.
-   - Direct Panel Selection: Click any active Panel 1–4 (or cycle with
+   - Direct Panel Selection: Click any active Panel 1-4 (or cycle with
      UP/DOWN) to focus it; clicks on silenced Panel 2 are ignored. Selecting
      Panel 4 ([ALL ACTIVE]) scales all active layers together, while holding
      Left/Right or dragging smoothly tunes the dynamic elevation budget:
      BUDGET: [ 0.40 C / 0.60 R ].
-   - Dual Hypsometric Fill / Vector Trace: Standard mode fills under Panel 4's
-     curve with vertical LUT color ribbons; Net mode paints a multi-colored
-     curve in one vectorized NumPy surfarray pass with zero Python line loops.
+   - In-Place Hypsometric Fill & Vector Trace: Standard mode paints vertical
+     LUT color columns directly into the cached surface using reusable scratch
+     buffers; Net mode paints a multi-colored curve in one vectorized NumPy
+     surfarray pass with zero temporary surface allocations.
 
 2. Mode 2: 2D Spatial Synthesizer (renderer_2d_synth.py):
    - Projects the three mathematical wave roles onto a 16:9 2D canvas:
@@ -487,6 +511,9 @@ The 5 Studio Viewports (studio/renderers/):
                                 silenced on 2-layer formulas).
        * Continental Crust (C): Concentric radial dome/pond centered at
                                 (0.5 + crust_offset_x, 0.5 + crust_offset_y).
+   - Config-Driven Tile Meshes: Pre-builds coarse tile meshes dynamically from
+     MIN_TILE_SIZE to MAX_TILE_SIZE (4px, 8px, 16px) so retro stepping and
+     tile contour nets evaluate only one point per block.
    - Dynamic Spatial Perspective (Key [P], Mode 2 only):
      Toggles how active waves map across 2D coordinates:
        * RADIAL Perspective (Default): Concentric radial island/pond dome.
@@ -522,7 +549,8 @@ The 5 Studio Viewports (studio/renderers/):
      drives that specific layer (e.g. swap Crust from Simplex to Value noise).
    - Proportional All-Layer Zoom: Right-dragging or holding Left/Right on
      the SCALE row without Shift scales Base, Relief, and Crust simultaneously
-     around the camera center. Holding [SHIFT] scales only the focused column.
+     around the camera center, stopping together at the first scale limit hit
+     to preserve layer ratios. Holding [SHIFT] scales only the focused column.
    - Master Elevation Budget: Scrubbing the bottom BUDGET row shifts tectonic
      crust height versus mountain relief across the entire planet live.
 
@@ -532,8 +560,8 @@ The 5 Studio Viewports (studio/renderers/):
      directly via [TAB / SHIFT + TAB]—using its own gradient-enabled
      ChunkManager (compute_gradients=True) so Mode 4 continues to skip slope
      math when not in lighting view.
-   - Evaluates hillshading on a crisp screen-relative lightmap divider
-     configured in profiles/lighting.yaml. In Tile Mode ([SPACE]), switches to
+   - Evaluates hillshading on a tunable screen-relative lightmap divider
+     (LM SUB-SMP: 1x, 2x, 4x, 8x, 16x). In Tile Mode ([SPACE]), switches to
      exact 1:1 tile-centroid lighting with nearest-neighbor scaling so every
      tile is cleanly flat-shaded with zero stripes.
    - Hybrid Gradient Sampling During Refinement: While actively scrubbing
@@ -543,9 +571,12 @@ The 5 Studio Viewports (studio/renderers/):
      crisp chunk slopes and seamlessly pulls world-anchored scrub slopes for any
      unloaded outer chunks.
    - Solar Control Deck: Ordered as Preset, World source, unified Scale, Sun
-     Azimuth (0-360 deg), Sun Altitude (0-90 deg), Hillshade Contrast, Ambient
-     Ratio, Orbit Speed (PAUSED to 4.0x), Time-of-Day, Exposure, and the master
-     base row BUDGET: [ 0.40 C / 0.60 R ].
+     Azimuth (0-360 deg), Sun Altitude (0-90 deg), Hillshade Contrast, Shadow
+     Intensity (0-255), Highlight Intensity (0-255), Ambient Ratio, Orbit
+     Speed (PAUSED to 4.0x; locked to PAUSED when Day Cycle is 0.0s), Day
+     Cycle Duration (STATIC 0.0s or 10.0-300.0s in 5s steps, preserving the
+     current time-of-day), Time-of-Day, Exposure, Lightmap Sub-Sample, and the
+     master base row BUDGET: [ 0.40 C / 0.60 R ].
 
 
 [7.0 GLOBAL TILE STEPPING & COARSE CENTROID EVALUATION]
@@ -733,24 +764,27 @@ MATRIX DECK CONTROLS (MODES 3 & 4):
 SOLAR CONTROL DECK CONTROLS (MODE 5):
 -------------------------------------------------------------------------------
     UP / DOWN           : Move row focus across Preset, World, Scale, Azimuth,
-                          Altitude, Contrast, Ambient, Orbit Spd, Time/Day,
-                          Exposure, and Budget.
+                          Altitude, Contrast, Shadow Int, Highlight, Ambient,
+                          Orbit Spd, Day Cycle, Time/Day, Exposure, LM Sub-Smp,
+                          and Budget.
 
-    LEFT MOUSE CLICK    : - On Discrete Rows (Preset, World, Orbit Spd):
-                            Steps forward (+1).
+    LEFT MOUSE CLICK    : - On Discrete Rows (Preset, World, Orbit Spd,
+                            Day Cycle, LM Sub-Smp): Steps forward (+1).
                           - On Continuous Rows (Scale, Azimuth, Altitude,
-                            Contrast, Ambient, Time/Day, Exposure, Budget):
-                            Focuses row for dragging.
+                            Contrast, Shadow Int, Highlight, Ambient, Time/Day,
+                            Exposure, Budget): Focuses row for dragging.
 
     RIGHT MOUSE CLICK   : On Discrete Rows: Steps backward (-1).
     (or SHIFT + LMB)
 
     RIGHT DRAG /        : Smoothly zooms unified world Scale (Right = zoom in,
-    HOLD LEFT / RIGHT     Left = zoom out) or scrubs Azimuth, Altitude,
-                          Contrast, Ambient Ratio, Time-of-Day, Exposure, or
-                          Elevation Budget.
+    HOLD LEFT / RIGHT     Left = zoom out, proportionally clamped across all
+                          active layers) or scrubs Azimuth, Altitude, Contrast,
+                          Shadow Int, Highlight, Ambient Ratio, Time-of-Day,
+                          Exposure, or Elevation Budget.
 
-    TAP LEFT / RIGHT    : Steps discrete rows (Preset, World, Orbit Spd) by 1.
+    TAP LEFT / RIGHT    : Steps discrete rows (Preset, World, Orbit Spd,
+                          Day Cycle, LM Sub-Smp) by 1.
 
     LEFT DRAG           : Pan camera across lit terrain at 60 FPS.
 

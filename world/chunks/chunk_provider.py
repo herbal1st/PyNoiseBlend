@@ -1,8 +1,10 @@
 """Abstract base specification defining the chunk provider contract."""
 
 from abc import ABC, abstractmethod
+from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
+import pygame
 
 from world.chunks.chunk import Chunk
 from world.chunks.chunk_profile import ChunkProfile
@@ -27,6 +29,7 @@ class ChunkProvider(ABC):
         self,
         cx: int,
         cy: int,
+        target_surface: Optional[pygame.Surface] = None,
     ) -> Chunk:
         """Generates and bakes a Chunk container for grid coordinates."""
         pass

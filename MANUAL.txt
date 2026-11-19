@@ -326,6 +326,22 @@ LIGHT_EXPOSURE_MAX              exposure. Keeps midday sunlight balanced so
 LIGHT_EXPOSURE_RATE           : Rate of change when scrubbing neutral exposure.
                                 Metric: Exposure change per second (float).
 
+LIGHT_DAY_CYCLE_MIN           : Shortest and longest active day/night orbit
+LIGHT_DAY_CYCLE_MAX             durations permitted when adjusting Day Cycle
+                                in Mode 5 (0.0 locks a static sun; values under
+                                the minimum are skipped so days never spin too
+                                fast).
+                                Metric: Seconds (float).
+
+LIGHT_DAY_CYCLE_STEP          : Step size added or subtracted per tap or click
+                                when adjusting Day Cycle duration in Mode 5.
+                                Metric: Seconds per step (float).
+
+LIGHT_INTENSITY_RATE          : Speed at which Shadow Intensity and Highlight
+                                Intensity (0 to 255) change per second while
+                                scrubbing in Mode 5.
+                                Metric: Intensity units per second (float).
+
 
 [CAMERA NAVIGATION SETTINGS]
 -------------------------------------------------------------------------------

@@ -38,6 +38,19 @@ class DayNightClock:
         if self.day_cycle_duration > 0.0:
             self.elapsed_time = wrapped * self.day_cycle_duration
 
+    def set_cycle_duration(self, duration: float) -> None:
+        """Updates cycle duration while preserving current time-of-day."""
+        cur_ratio = self.normalized_time
+        new_dur = max(0.0, float(duration))
+        self.day_cycle_duration = new_dur
+        self._static_time_ratio = cur_ratio
+
+        if new_dur <= 0.0:
+            self.elapsed_time = 0.0
+            self.is_paused = True
+        else:
+            self.elapsed_time = cur_ratio * new_dur
+
     def toggle_pause(self) -> None:
         """Toggles orbit clock progression on and off."""
         self.is_paused = not self.is_paused

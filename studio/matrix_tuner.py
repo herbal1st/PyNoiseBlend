@@ -169,11 +169,31 @@ def scale_world_layers(
         _scale_single_layer(state, state.selected_matrix_col, factor)
         return
 
-    _scale_single_layer(state, 0, factor)
+    cols = [0]
     if state.formula.uses_relief:
-        _scale_single_layer(state, 1, factor)
+        cols.append(1)
     if state.formula.uses_crust:
-        _scale_single_layer(state, 2, factor)
+        cols.append(2)
+
+    scales = []
+    for col in cols:
+        prof = state.get_layer_profile(col)
+        if prof is not None and prof.scale > 0.0:
+            scales.append(prof.scale)
+
+    if not scales:
+        return
+
+    min_f = max(config.NOISE_MIN_SCALE / s for s in scales)
+    max_f = min(config.NOISE_MAX_SCALE / s for s in scales)
+    clamped_factor = (
+        max(min_f, min(max_f, factor)) if min_f <= max_f else factor
+    )
+    if abs(clamped_factor - 1.0) <= 1e-7:
+        return
+
+    for col in cols:
+        _scale_single_layer(state, col, clamped_factor)
 
 
 def reset_noise_tuning(state: "StudioState") -> None:

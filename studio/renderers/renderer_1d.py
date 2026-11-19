@@ -33,6 +33,10 @@ class Renderer1D(BaseRenderer):
         self.cached_surface: pygame.Surface = pygame.Surface(
             (self.width, self.height)
         )
+        self._fill_draw_h: int = 0
+        self._fill_y_rows: Optional[NDArray[np.int32]] = None
+        self._fill_mask: Optional[NDArray[np.bool_]] = None
+        self._fill_rgb: Optional[NDArray[np.uint8]] = None
 
     def update_surface(
         self,
@@ -323,25 +327,44 @@ class Renderer1D(BaseRenderer):
         y_draw_max: int,
         int_draw_h: int,
     ) -> None:
-        """Blits columnar hypsometric fills via vectorized buffer."""
+        """Paints columnar hypsometric fills directly into cached surface."""
+        self._ensure_fill_scratch(int_draw_h)
+        assert self._fill_y_rows is not None
+        assert self._fill_mask is not None
+        assert self._fill_rgb is not None
+
         lut_idx = np.clip(wave_data * 1023.0, 0, 1023).astype(np.int32)
         cols_rgb = fill_lut[lut_idx]
 
         h_pixels = np.round(wave_data * float(int_draw_h)).astype(np.int32)
         h_clamped = np.clip(h_pixels, 0, int_draw_h)
+        threshold = (int_draw_h - h_clamped)[:, None]
 
-        y_indices = np.arange(int_draw_h, dtype=np.int32)[:, None]
-        active_mask = y_indices >= (int_draw_h - h_clamped[None, :])
+        np.greater_equal(self._fill_y_rows, threshold, out=self._fill_mask)
+        self._fill_rgb[:] = config.BACKGROUND_COLOR
 
-        bg_rgb = np.array(config.BACKGROUND_COLOR, dtype=np.uint8)
-        buffer = np.full(
-            (int_draw_h, self.width, 3), bg_rgb, dtype=np.uint8
+        cols_bcast = np.broadcast_to(
+            cols_rgb[:, None, :], (self.width, int_draw_h, 3)
         )
-        broadcast_cols = np.broadcast_to(
-            cols_rgb[None, :, :], (int_draw_h, self.width, 3)
+        np.copyto(
+            self._fill_rgb, cols_bcast, where=self._fill_mask[:, :, None]
         )
-        np.copyto(buffer, broadcast_cols, where=active_mask[:, :, None])
 
-        surf_transposed = np.transpose(buffer, (1, 0, 2))
-        fill_surface = pygame.surfarray.make_surface(surf_transposed)
-        self.cached_surface.blit(fill_surface, (0, y_draw_max))
+        surf_view = pygame.surfarray.pixels3d(self.cached_surface)
+        try:
+            surf_view[:, y_draw_max : y_draw_max + int_draw_h] = (
+                self._fill_rgb
+            )
+        finally:
+            del surf_view
+
+    def _ensure_fill_scratch(self, int_draw_h: int) -> None:
+        """Lazily allocates reusable (W, H) buffers for Panel 4 fills."""
+        if self._fill_draw_h == int_draw_h and self._fill_rgb is not None:
+            return
+        self._fill_draw_h = int_draw_h
+        self._fill_y_rows = np.arange(
+            int_draw_h, dtype=np.int32
+        )[None, :]
+        self._fill_mask = np.empty((self.width, int_draw_h), dtype=bool)
+        self._fill_rgb = np.empty((self.width, int_draw_h, 3), dtype=np.uint8)

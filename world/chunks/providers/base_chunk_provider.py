@@ -1,5 +1,6 @@
 """Shared base provider for LUT translation, isolines, and surface baking."""
 
+from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 import pygame
@@ -73,7 +74,9 @@ class BaseChunkProvider(ChunkProvider):
         else:
             rgb_buffer = self._render_field_to_rgb(chunk.elevation)
 
-        surface = self._bake_surface_from_rgb(rgb_buffer, c_sz)
+        surface = self._bake_surface_from_rgb(
+            rgb_buffer, c_sz, target_surface=chunk.surface
+        )
         chunk.set_surface(surface)
 
     def _bake_padded_tile_contour_rgb(
@@ -115,11 +118,19 @@ class BaseChunkProvider(ChunkProvider):
     def _bake_surface_from_rgb(
         rgb_buffer: NDArray[np.uint8],
         size: int,
+        target_surface: Optional[pygame.Surface] = None,
     ) -> pygame.Surface:
-        """Converts RGB byte buffer into a display-matched SDL surface."""
-        surface = pygame.image.frombuffer(
-            rgb_buffer.tobytes(), (size, size), "RGB"
-        )
-        if pygame.display.get_surface() is not None:
-            surface = surface.convert()
+        """Writes RGB buffer directly into display-matched SDL surface."""
+        if (
+            target_surface is not None
+            and target_surface.get_size() == (size, size)
+        ):
+            surface = target_surface
+        else:
+            surface = pygame.Surface((size, size))
+            if pygame.display.get_surface() is not None:
+                surface = surface.convert()
+
+        rgb_wh = np.transpose(rgb_buffer, (1, 0, 2))
+        pygame.surfarray.blit_array(surface, rgb_wh)
         return surface

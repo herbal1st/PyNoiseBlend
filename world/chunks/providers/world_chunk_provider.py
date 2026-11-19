@@ -4,6 +4,7 @@ import math
 from typing import Dict, Optional, Tuple
 import numpy as np
 from numpy.typing import NDArray
+import pygame
 import config
 from core.formulas import FORMULA_CATALOG, FormulaPreset
 from utils.error_handler import fail_fast
@@ -182,6 +183,7 @@ class WorldChunkProvider(BaseChunkProvider):
         self,
         cx: int,
         cy: int,
+        target_surface: Optional[pygame.Surface] = None,
     ) -> Chunk:
         """Generates elevation, optional gradients, and bakes surface."""
         chunk_sz = self._chunk_profile.chunk_size
@@ -195,7 +197,9 @@ class WorldChunkProvider(BaseChunkProvider):
             h, gx, gy, rgb_buffer = self._generate_tiled_chunk_data(
                 wx_origin, wy_origin, chunk_sz, t_sz
             )
-            surface = self._bake_surface_from_rgb(rgb_buffer, chunk_sz)
+            surface = self._bake_surface_from_rgb(
+                rgb_buffer, chunk_sz, target_surface=target_surface
+            )
             return Chunk(
                 cx=cx,
                 cy=cy,
@@ -237,7 +241,9 @@ class WorldChunkProvider(BaseChunkProvider):
             )
             rgb_buffer = self._render_field_to_rgb(h)
 
-        surface = self._bake_surface_from_rgb(rgb_buffer, chunk_sz)
+        surface = self._bake_surface_from_rgb(
+            rgb_buffer, chunk_sz, target_surface=target_surface
+        )
         return Chunk(
             cx=cx,
             cy=cy,
@@ -475,13 +481,13 @@ class WorldChunkProvider(BaseChunkProvider):
             b = self.base_noise.sample_grid(
                 ox, oy, width, height,
                 step=step, tile_size=tile_size,
-                sub_factor=1, upscale=False,
+                sub_factor=1, upscale=upscale,
             )
             r = (
                 self.macro_noise.sample_grid(
                     ox, oy, width, height,
                     step=step, tile_size=tile_size,
-                    sub_factor=1, upscale=False,
+                    sub_factor=1, upscale=upscale,
                 )
                 if self.formula.uses_relief and self.macro_noise is not None
                 else np.zeros_like(b)
@@ -490,7 +496,7 @@ class WorldChunkProvider(BaseChunkProvider):
                 self.crust_noise.sample_grid(
                     ox, oy, width, height,
                     step=step, tile_size=tile_size,
-                    sub_factor=1, upscale=False,
+                    sub_factor=1, upscale=upscale,
                 )
                 if self.formula.uses_crust and self.crust_noise is not None
                 else np.zeros_like(b)

@@ -67,6 +67,8 @@ class AtmosphereOverlayManager:
         fallback_field: Optional[NDArray[np.float32]] = None,
         fallback_origin: Tuple[float, float] = (0.0, 0.0),
         fallback_step: float = 1.0,
+        shadow_intensity: Optional[int] = None,
+        highlight_intensity: Optional[int] = None,
     ) -> None:
         """Computes and blits the unified lightmap via BLEND_MULT."""
         fallback = self._resolve_fallback_grid(
@@ -91,11 +93,10 @@ class AtmosphereOverlayManager:
             )
         else:
             shift_x, shift_y = 0, 0
-            base_sub = self.profile.lightmap_sub_sample
             eff_sub = (
-                max(base_sub, sub_sample_override)
+                int(sub_sample_override)
                 if sub_sample_override is not None
-                else base_sub
+                else self.profile.lightmap_sub_sample
             )
             eff_sub = max(1, eff_sub)
             target_w = max(2, surf_w // eff_sub)
@@ -124,6 +125,8 @@ class AtmosphereOverlayManager:
             tile_size=tile_size,
             shift_x=shift_x,
             shift_y=shift_y,
+            shadow_intensity=shadow_intensity,
+            highlight_intensity=highlight_intensity,
         )
 
     def draw_overlay_from_field(
@@ -140,6 +143,8 @@ class AtmosphereOverlayManager:
         focus_x: float = 0.0,
         focus_y: float = 0.0,
         field_origin: Tuple[float, float] = (0.0, 0.0),
+        shadow_intensity: Optional[int] = None,
+        highlight_intensity: Optional[int] = None,
     ) -> None:
         """Computes and blits lightmap directly from a scrub heightfield."""
         gx_scaled, gy_scaled = self._compute_field_gradients(
@@ -176,6 +181,8 @@ class AtmosphereOverlayManager:
             tile_size=tile_size,
             shift_x=shift_x,
             shift_y=shift_y,
+            shadow_intensity=shadow_intensity,
+            highlight_intensity=highlight_intensity,
         )
 
     def _resolve_fallback_grid(
@@ -221,12 +228,24 @@ class AtmosphereOverlayManager:
         tile_size: int = 0,
         shift_x: int = 0,
         shift_y: int = 0,
+        shadow_intensity: Optional[int] = None,
+        highlight_intensity: Optional[int] = None,
     ) -> None:
         """Runs shadow engine and blits scaled lightmap onto target."""
         ambient_rgb: Tuple[int, int, int] = (
             AmbientPaletteResolver.resolve_ambient_color(
                 self.clock.normalized_time, self.profile
             )
+        )
+        eff_sh = (
+            self.profile.shadow_intensity
+            if shadow_intensity is None
+            else shadow_intensity
+        )
+        eff_hl = (
+            self.profile.highlight_intensity
+            if highlight_intensity is None
+            else highlight_intensity
         )
         raw_lightmap = VectorizedHeightShadowEngine.compute_unified_lightmap(
             gx_matrix=gx,
@@ -235,8 +254,8 @@ class AtmosphereOverlayManager:
             altitude_deg=altitude_deg,
             steepness=steepness,
             ambient_ratio=ambient_ratio,
-            shadow_intensity=self.profile.shadow_intensity,
-            highlight_intensity=self.profile.highlight_intensity,
+            shadow_intensity=eff_sh,
+            highlight_intensity=eff_hl,
             ambient_rgb=ambient_rgb,
             neutral_exposure=neutral_exposure,
         )

@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 import pygame
 import config
 from core.formulas import FORMULA_CATALOG, PRESETS_2D, FormulaPreset, Preset2D
+from studio.matrix_tuner import ROW_WORLD_SEED
 from utils.noise.noise_generator import NoiseGenerator, NoiseProfile
 from world.chunks.chunk_profile import ChunkProfile, ChunkProfileLoader
 from world.chunks.world_profile import WorldProfile, WorldProfileLoader
@@ -85,10 +86,14 @@ class StudioState:
     light_azimuth_deg: float = 90.0
     light_altitude_deg: float = 10.0
     light_contrast: float = 135.0
+    light_shadow_intensity: float = 170.0
+    light_highlight_intensity: float = 120.0
     light_ambient_ratio: float = 0.25
     light_orbit_scale: float = 1.0
+    light_day_cycle: float = 60.0
     light_time_ratio: float = 0.30
     light_exposure: float = 0.85
+    light_sub_sample: int = 4
     light_time_dirty: bool = False
     light_world_source_index: int = 0
     light_preset_transforms: Dict[str, Tuple[float, float, float]] = field(
@@ -250,17 +255,19 @@ class StudioState:
     def start_seed_editing(self, row: int, col: int) -> None:
         """Enters text typing mode for the specified seed cell."""
         self.is_editing_seed = True
-        self.editing_seed_coord = (row, col)
+        norm_col = 0 if row == ROW_WORLD_SEED else col
+        self.editing_seed_coord = (row, norm_col)
 
-        if row == 8:
+        if row == ROW_WORLD_SEED:
             self.seed_input_buffer = str(self.world_seed)
-        else:
-            prof = (
-                self.get_layer_profile(col)
-                if self.active_mode == 4
-                else self.active_noise_profile
-            )
-            self.seed_input_buffer = str(prof.seed) if prof else "0"
+            return
+
+        prof = (
+            self.get_layer_profile(norm_col)
+            if self.active_mode == 4
+            else self.active_noise_profile
+        )
+        self.seed_input_buffer = str(prof.seed) if prof else "0"
 
     def commit_seed_editing(self) -> None:
         """Validates typed buffer, commits seed, and exits edit mode."""
@@ -274,7 +281,7 @@ class StudioState:
             return
 
         row, col = self.editing_seed_coord
-        if row == 8:
+        if row == ROW_WORLD_SEED:
             self.world_seed = val
         else:
             prof = (
@@ -409,10 +416,14 @@ class StudioState:
         self.light_azimuth_deg = lp.start_azimuth_deg
         self.light_altitude_deg = lp.start_altitude_deg
         self.light_contrast = lp.terrain_steepness
+        self.light_shadow_intensity = float(lp.shadow_intensity)
+        self.light_highlight_intensity = float(lp.highlight_intensity)
         self.light_ambient_ratio = lp.ambient_ratio
+        self.light_day_cycle = lp.day_cycle_duration
         self.light_orbit_scale = 0.0 if lp.day_cycle_duration <= 0.0 else 1.0
         self.light_time_ratio = lp.start_time_ratio
         self.light_exposure = lp.neutral_exposure
+        self.light_sub_sample = lp.lightmap_sub_sample
         self.light_preset_transforms.clear()
         self.light_time_dirty = True
 
@@ -426,25 +437,42 @@ class StudioState:
     def scale_light_preset(
         self,
         preset_key: str,
-        base_scale: float,
         factor: float,
     ) -> None:
-        """Scales a Mode 5 world preset non-destructively around camera."""
+        """Scales a Mode 5 world preset proportionally around camera."""
+        wp = self.world_profiles.get(preset_key)
+        if wp is None:
+            return
+
+        keys = [wp.base_noise_profile]
+        if self.formula.uses_relief:
+            keys.append(wp.macro_noise_profile)
+        if self.formula.uses_crust:
+            keys.append(wp.crust_noise_profile)
+
         old_ratio, off_x, off_y = self.get_light_preset_transform(
             preset_key
         )
-        old_eff = base_scale * old_ratio
-        new_eff = max(
-            config.NOISE_MIN_SCALE,
-            min(config.NOISE_MAX_SCALE, old_eff * factor),
-        )
-        if new_eff == old_eff:
+        eff_scales = []
+        for key in keys:
+            prof = self.default_noise_profiles.get(key)
+            if prof is not None and prof.scale > 0.0:
+                eff_scales.append(prof.scale * old_ratio)
+
+        if not eff_scales:
             return
 
-        step_ratio = new_eff / old_eff
-        new_ratio = new_eff / max(0.001, base_scale)
-        new_ox = self.cam_x - ((self.cam_x - off_x) * step_ratio)
-        new_oy = self.cam_y - ((self.cam_y - off_y) * step_ratio)
+        min_f = max(config.NOISE_MIN_SCALE / s for s in eff_scales)
+        max_f = min(config.NOISE_MAX_SCALE / s for s in eff_scales)
+        clamped_factor = (
+            max(min_f, min(max_f, factor)) if min_f <= max_f else factor
+        )
+        new_ratio = old_ratio * clamped_factor
+        if abs(new_ratio - old_ratio) <= 1e-7:
+            return
+
+        new_ox = self.cam_x - ((self.cam_x - off_x) * clamped_factor)
+        new_oy = self.cam_y - ((self.cam_y - off_y) * clamped_factor)
         self.light_preset_transforms[preset_key] = (
             new_ratio,
             new_ox,

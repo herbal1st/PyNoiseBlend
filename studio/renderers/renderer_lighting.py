@@ -19,14 +19,19 @@ LIGHT_ROW_SCALE: int = 2
 LIGHT_ROW_AZIMUTH: int = 3
 LIGHT_ROW_ALTITUDE: int = 4
 LIGHT_ROW_CONTRAST: int = 5
-LIGHT_ROW_AMBIENT: int = 6
-LIGHT_ROW_ORBIT_SPEED: int = 7
-LIGHT_ROW_TIME: int = 8
-LIGHT_ROW_EXPOSURE: int = 9
-LIGHT_ROW_BUDGET: int = 10
-LIGHT_MATRIX_ROW_COUNT: int = 11
+LIGHT_ROW_SHADOW: int = 6
+LIGHT_ROW_HIGHLIGHT: int = 7
+LIGHT_ROW_AMBIENT: int = 8
+LIGHT_ROW_ORBIT_SPEED: int = 9
+LIGHT_ROW_DAY_CYCLE: int = 10
+LIGHT_ROW_TIME: int = 11
+LIGHT_ROW_EXPOSURE: int = 12
+LIGHT_ROW_LM_SUB: int = 13
+LIGHT_ROW_BUDGET: int = 14
+LIGHT_MATRIX_ROW_COUNT: int = 15
 
 LIGHT_ORBIT_SCALES: Tuple[float, ...] = (0.0, 0.5, 1.0, 2.0, 4.0)
+LIGHT_SUB_SAMPLE_FACTORS: Tuple[int, ...] = (1, 2, 4, 8, 16)
 
 _SOLAR_ROWS: Tuple[Tuple[int, str], ...] = (
     (LIGHT_ROW_PRESET, "PRESET    :"),
@@ -35,10 +40,14 @@ _SOLAR_ROWS: Tuple[Tuple[int, str], ...] = (
     (LIGHT_ROW_AZIMUTH, "AZIMUTH   :"),
     (LIGHT_ROW_ALTITUDE, "ALTITUDE  :"),
     (LIGHT_ROW_CONTRAST, "CONTRAST  :"),
+    (LIGHT_ROW_SHADOW, "SHADOW INT:"),
+    (LIGHT_ROW_HIGHLIGHT, "HIGHLIGHT :"),
     (LIGHT_ROW_AMBIENT, "AMBIENT   :"),
     (LIGHT_ROW_ORBIT_SPEED, "ORBIT SPD :"),
+    (LIGHT_ROW_DAY_CYCLE, "DAY CYCLE :"),
     (LIGHT_ROW_TIME, "TIME/DAY  :"),
     (LIGHT_ROW_EXPOSURE, "EXPOSURE  :"),
+    (LIGHT_ROW_LM_SUB, "LM SUB-SMP:"),
     (LIGHT_ROW_BUDGET, "BUDGET    :"),
 )
 
@@ -76,18 +85,25 @@ class RendererLighting(BaseChunkRenderer):
             self.atmosphere.set_profile(lp)
             self._last_lighting_key = lp.profile_name
 
+        clock = self.atmosphere.clock
+        if abs(clock.day_cycle_duration - state.light_day_cycle) > 1e-4:
+            clock.set_cycle_duration(state.light_day_cycle)
+
+        if state.light_day_cycle <= 0.0:
+            state.light_orbit_scale = 0.0
+
         if state.light_time_dirty:
-            self.atmosphere.clock.set_normalized_time(state.light_time_ratio)
+            clock.set_normalized_time(state.light_time_ratio)
             state.light_time_dirty = False
 
-        self.atmosphere.clock.time_scale = state.light_orbit_scale
-        self.atmosphere.clock.is_paused = state.light_orbit_scale <= 0.0
+        clock.time_scale = state.light_orbit_scale
+        clock.is_paused = state.light_orbit_scale <= 0.0
         self.atmosphere.update(dt)
 
-        if not self.atmosphere.clock.is_paused and lp.day_cycle_duration > 0.0:
-            state.light_time_ratio = self.atmosphere.clock.normalized_time
+        if not clock.is_paused and state.light_day_cycle > 0.0:
+            state.light_time_ratio = clock.normalized_time
             deg_step = (
-                360.0 * dt * state.light_orbit_scale / lp.day_cycle_duration
+                360.0 * dt * state.light_orbit_scale / state.light_day_cycle
             )
             state.light_azimuth_deg = (
                 state.light_azimuth_deg - deg_step
@@ -108,6 +124,8 @@ class RendererLighting(BaseChunkRenderer):
     def _draw_lighting_overlay(self, state: StudioState) -> None:
         """Selects scrub-field or hybrid chunk-sampled lightmap path."""
         tile_sz = state.tile_size if state.tile_stepping_enabled else 0
+        sh_int = int(round(state.light_shadow_intensity))
+        hl_int = int(round(state.light_highlight_intensity))
 
         if state.is_scrubbing and self._last_scrub_field is not None:
             step_scale = (
@@ -131,6 +149,8 @@ class RendererLighting(BaseChunkRenderer):
                     self._preview_origin_x,
                     self._preview_origin_y,
                 ),
+                shadow_intensity=sh_int,
+                highlight_intensity=hl_int,
             )
             return
 
@@ -149,6 +169,7 @@ class RendererLighting(BaseChunkRenderer):
             steepness=state.light_contrast,
             ambient_ratio=state.light_ambient_ratio,
             neutral_exposure=state.light_exposure,
+            sub_sample_override=state.light_sub_sample,
             tile_size=tile_sz,
             fallback_field=fb_field,
             fallback_origin=(
@@ -156,6 +177,8 @@ class RendererLighting(BaseChunkRenderer):
                 self._preview_origin_y,
             ),
             fallback_step=self._preview_step_scale,
+            shadow_intensity=sh_int,
+            highlight_intensity=hl_int,
         )
 
     def _resolve_world_source(
@@ -299,6 +322,7 @@ class RendererLighting(BaseChunkRenderer):
             self.provider = self._build_provider(state, active_lut)
             self.chunk_manager.set_provider(self.provider)
             self._invalidate_preview()
+            self.atmosphere.clear_fallback_cache()
             self._last_struct_sig = struct_sig
             self._last_scale_sig = self._compute_scale_signature(state)
             self._last_palette_name = pal_name
@@ -355,6 +379,7 @@ class RendererLighting(BaseChunkRenderer):
         )
         if tile_changed or needs_tile_regen:
             self._invalidate_preview()
+            self.atmosphere.clear_fallback_cache()
             self.chunk_manager.clear()
         elif net_changed or palette_changed:
             self._has_preview = False
@@ -476,16 +501,26 @@ class RendererLighting(BaseChunkRenderer):
             return f"[ {state.light_altitude_deg:.1f} deg ]"
         if row_id == LIGHT_ROW_CONTRAST:
             return f"[ {state.light_contrast:.1f} ]"
+        if row_id == LIGHT_ROW_SHADOW:
+            return f"[ {int(round(state.light_shadow_intensity))} ]"
+        if row_id == LIGHT_ROW_HIGHLIGHT:
+            return f"[ {int(round(state.light_highlight_intensity))} ]"
         if row_id == LIGHT_ROW_AMBIENT:
             return f"[ {state.light_ambient_ratio:.2f} ]"
         if row_id == LIGHT_ROW_ORBIT_SPEED:
             if state.light_orbit_scale <= 0.0:
                 return "[ PAUSED ]"
             return f"[ {state.light_orbit_scale:.1f}x ]"
+        if row_id == LIGHT_ROW_DAY_CYCLE:
+            if state.light_day_cycle <= 0.0:
+                return "[ STATIC (0.0s) ]"
+            return f"[ {state.light_day_cycle:.1f} s ]"
         if row_id == LIGHT_ROW_TIME:
             return f"[ {state.light_time_ratio:.2f} ]"
         if row_id == LIGHT_ROW_EXPOSURE:
             return f"[ {state.light_exposure:.2f} ]"
+        if row_id == LIGHT_ROW_LM_SUB:
+            return f"[ {state.light_sub_sample}x ]"
         if row_id == LIGHT_ROW_BUDGET:
             return (
                 f"[ {state.crust_budget:.2f} C / {state.relief_budget:.2f} R ]"

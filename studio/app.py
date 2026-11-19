@@ -1,6 +1,6 @@
 """Master studio application loop coordinating input, math, and renderers."""
 
-from typing import Dict
+from typing import Dict, List
 import numpy as np
 from numpy.typing import NDArray
 import pygame
@@ -55,13 +55,9 @@ class TerrainStudioApp:
             config.SCREEN_HEIGHT,
             config.SCRUB_SUB_SAMPLE_FACTOR,
         )
-
-        self.coarse_meshes: Dict[int, CoordinateMesh2D] = {
-            sz: build_coarse_mesh_2d(
-                config.SCREEN_WIDTH, config.SCREEN_HEIGHT, sz
-            )
-            for sz in (8, 16, 32)
-        }
+        self.coarse_meshes: Dict[int, CoordinateMesh2D] = (
+            self._build_coarse_meshes()
+        )
 
         self.renderer_1d: Renderer1D = Renderer1D(self.screen)
         self.renderer_2d: Renderer2DSynth = Renderer2DSynth(self.screen)
@@ -167,6 +163,28 @@ class TerrainStudioApp:
         if self.state.is_scrubbing:
             return self.scrub_mesh_2d
         return self.continuous_mesh
+
+    @staticmethod
+    def _build_coarse_meshes() -> Dict[int, CoordinateMesh2D]:
+        """Builds 2D coarse tile meshes matching configured bounds."""
+        sizes: List[int] = []
+        curr = max(2, config.MIN_TILE_SIZE)
+        while curr <= config.MAX_TILE_SIZE:
+            sizes.append(curr)
+            curr *= 2
+
+        if (
+            config.DEFAULT_TILE_SIZE > 1
+            and config.DEFAULT_TILE_SIZE not in sizes
+        ):
+            sizes.append(config.DEFAULT_TILE_SIZE)
+
+        return {
+            sz: build_coarse_mesh_2d(
+                config.SCREEN_WIDTH, config.SCREEN_HEIGHT, sz
+            )
+            for sz in sizes
+        }
 
 
 def run_app() -> None:

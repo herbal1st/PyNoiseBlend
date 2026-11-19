@@ -9,6 +9,8 @@ import pygame
 from world.chunks.chunk import Chunk
 from world.chunks.chunk_provider import ChunkProvider
 
+_MAX_SURFACE_POOL: int = 256
+
 
 class ChunkManager:
     """Manages infinite spatial chunk caching, streaming, and blitting."""
@@ -18,6 +20,7 @@ class ChunkManager:
         self.provider: ChunkProvider = provider
         self.chunk_size: int = provider.chunk_profile.chunk_size
         self.chunks: Dict[Tuple[int, int], Chunk] = {}
+        self._surface_pool: List[pygame.Surface] = []
 
         self.load_margin: float = max(
             0.75, provider.chunk_profile.load_margin
@@ -34,13 +37,19 @@ class ChunkManager:
 
     def set_provider(self, provider: ChunkProvider) -> None:
         """Rebinds active ChunkProvider and flushes loaded chunks."""
+        old_size = self.chunk_size
         self.provider = provider
         self.chunk_size = provider.chunk_profile.chunk_size
         self.load_margin = max(0.75, provider.chunk_profile.load_margin)
         self.unload_margin = max(
             self.load_margin + 0.25, provider.chunk_profile.unload_margin
         )
-        self.clear()
+        if self.chunk_size != old_size:
+            self._surface_pool.clear()
+            self.chunks.clear()
+            self._has_boundary = False
+        else:
+            self.clear()
 
     def rebake_all_surfaces(self, new_lut: NDArray[np.uint8]) -> None:
         """Updates provider LUT and re-indexes cached chunk surfaces."""
@@ -83,6 +92,20 @@ class ChunkManager:
         self._inv_b_load_sq = inv_b_load_sq
         self._has_boundary = True
 
+        for coord_key in list(self.chunks.keys()):
+            cx_idx, cy_idx = coord_key
+            diff_x = float(cx_idx) + 0.5 - center_cx
+            diff_y = float(cy_idx) + 0.5 - center_cy
+
+            dist_sq = (
+                (diff_x * diff_x * inv_a_unload_sq)
+                + (diff_y * diff_y * inv_b_unload_sq)
+            )
+
+            if dist_sq > 1.0:
+                self._recycle_chunk_surface(self.chunks[coord_key])
+                del self.chunks[coord_key]
+
         search_x: int = math.ceil(a_load)
         search_y: int = math.ceil(b_load)
         missing: List[Tuple[float, int, int]] = []
@@ -92,10 +115,10 @@ class ChunkManager:
                 tcx: int = int_cx + dx
                 tcy: int = int_cy + dy
 
-                diff_x: float = float(tcx) + 0.5 - center_cx
-                diff_y: float = float(tcy) + 0.5 - center_cy
+                diff_x = float(tcx) + 0.5 - center_cx
+                diff_y = float(tcy) + 0.5 - center_cy
 
-                dist_sq: float = (
+                dist_sq = (
                     (diff_x * diff_x * inv_a_load_sq)
                     + (diff_y * diff_y * inv_b_load_sq)
                 )
@@ -111,21 +134,11 @@ class ChunkManager:
             to_generate = missing
 
         for _, tcx, tcy in to_generate:
-            chunk = self.provider.generate_chunk(tcx, tcy)
-            self.chunks[(tcx, tcy)] = chunk
-
-        for coord_key in list(self.chunks.keys()):
-            cx_idx, cy_idx = coord_key
-            diff_x = float(cx_idx) + 0.5 - center_cx
-            diff_y = float(cy_idx) + 0.5 - center_cy
-
-            dist_sq = (
-                (diff_x * diff_x * inv_a_unload_sq)
-                + (diff_y * diff_y * inv_b_unload_sq)
+            recycled_surf = self._acquire_surface()
+            chunk = self.provider.generate_chunk(
+                tcx, tcy, target_surface=recycled_surf
             )
-
-            if dist_sq > 1.0:
-                del self.chunks[coord_key]
+            self.chunks[(tcx, tcy)] = chunk
 
         return max(0, len(missing) - len(to_generate))
 
@@ -234,9 +247,28 @@ class ChunkManager:
         return dist_sq <= 1.0
 
     def clear(self) -> None:
-        """Purges all loaded chunks and releases surface memory from RAM."""
+        """Recycles chunk surfaces into pool and clears loaded chunks."""
+        for chunk in self.chunks.values():
+            self._recycle_chunk_surface(chunk)
         self.chunks.clear()
         self._has_boundary = False
+
+    def _acquire_surface(self) -> Optional[pygame.Surface]:
+        """Pops a recycled SDL surface from the pool if available."""
+        if self._surface_pool:
+            return self._surface_pool.pop()
+        return None
+
+    def _recycle_chunk_surface(self, chunk: Chunk) -> None:
+        """Returns a chunk's SDL surface to the bounded pool."""
+        surf = chunk.surface
+        chunk.clear_surface()
+        if (
+            surf is not None
+            and surf.get_size() == (self.chunk_size, self.chunk_size)
+            and len(self._surface_pool) < _MAX_SURFACE_POOL
+        ):
+            self._surface_pool.append(surf)
 
     def _compute_visible_bounds(
         self,

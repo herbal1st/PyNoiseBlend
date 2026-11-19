@@ -85,6 +85,10 @@ LIGHT_TIME_RATE: float = 0.25  # rate/sec
 LIGHT_EXPOSURE_MIN: float = 0.50  # fraction
 LIGHT_EXPOSURE_MAX: float = 1.00  # fraction
 LIGHT_EXPOSURE_RATE: float = 0.25  # rate/sec
+LIGHT_DAY_CYCLE_MIN: float = 10.0  # seconds
+LIGHT_DAY_CYCLE_MAX: float = 300.0  # seconds
+LIGHT_DAY_CYCLE_STEP: float = 5.0  # seconds
+LIGHT_INTENSITY_RATE: float = 120.0  # rate/sec
 
 # ------ Camera Navigation Settings ------
 TEST_PAN_SPEED: float = 400.0  # px/sec

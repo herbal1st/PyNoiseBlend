@@ -1,7 +1,9 @@
 """Chunk provider synthesizing isolated procedural noise for tools."""
 
+from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
+import pygame
 import config
 from utils.noise.noise_generator import NoiseGenerator, NoiseProfile
 from world.chunks.chunk import Chunk
@@ -60,6 +62,7 @@ class NoiseChunkProvider(BaseChunkProvider):
         self,
         cx: int,
         cy: int,
+        target_surface: Optional[pygame.Surface] = None,
     ) -> Chunk:
         """Samples continuous noise and bakes hardware SDL surface."""
         c_sz: int = self._chunk_profile.chunk_size
@@ -91,7 +94,9 @@ class NoiseChunkProvider(BaseChunkProvider):
             field = np.ascontiguousarray(raw_field[:c_sz, :c_sz])
             rgb_buffer = self._render_field_to_rgb(field)
 
-        surface = self._bake_surface_from_rgb(rgb_buffer, c_sz)
+        surface = self._bake_surface_from_rgb(
+            rgb_buffer, c_sz, target_surface=target_surface
+        )
         return Chunk(
             cx=cx, cy=cy, size=c_sz, elevation=field, surface=surface
         )

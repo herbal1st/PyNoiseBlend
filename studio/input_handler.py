@@ -19,12 +19,17 @@ from studio.renderers.renderer_lighting import (
     LIGHT_ROW_AZIMUTH,
     LIGHT_ROW_BUDGET,
     LIGHT_ROW_CONTRAST,
+    LIGHT_ROW_DAY_CYCLE,
     LIGHT_ROW_EXPOSURE,
+    LIGHT_ROW_HIGHLIGHT,
+    LIGHT_ROW_LM_SUB,
     LIGHT_ROW_ORBIT_SPEED,
     LIGHT_ROW_PRESET,
     LIGHT_ROW_SCALE,
+    LIGHT_ROW_SHADOW,
     LIGHT_ROW_TIME,
     LIGHT_ROW_WORLD,
+    LIGHT_SUB_SAMPLE_FACTORS,
 )
 from studio.state import StudioState
 
@@ -459,16 +464,9 @@ class InputHandler:
                 state, factor, single_layer=False
             )
         else:
-            preset_key = state.active_light_world_label
-            wp = state.world_profiles.get(preset_key)
-            if wp is not None:
-                base_prof = state.default_noise_profiles.get(
-                    wp.base_noise_profile
-                )
-                if base_prof is not None:
-                    state.scale_light_preset(
-                        preset_key, base_prof.scale, factor
-                    )
+            state.scale_light_preset(
+                state.active_light_world_label, factor
+            )
         state.mark_scrubbing()
 
     @staticmethod
@@ -478,6 +476,8 @@ class InputHandler:
             LIGHT_ROW_PRESET,
             LIGHT_ROW_WORLD,
             LIGHT_ROW_ORBIT_SPEED,
+            LIGHT_ROW_DAY_CYCLE,
+            LIGHT_ROW_LM_SUB,
         )
 
     @staticmethod
@@ -489,6 +489,9 @@ class InputHandler:
         elif row == LIGHT_ROW_WORLD:
             state.cycle_light_world_source(direction)
         elif row == LIGHT_ROW_ORBIT_SPEED:
+            if state.light_day_cycle <= 0.0:
+                state.light_orbit_scale = 0.0
+                return
             scales = LIGHT_ORBIT_SCALES
             cur_idx = (
                 scales.index(state.light_orbit_scale)
@@ -497,6 +500,34 @@ class InputHandler:
             )
             next_idx = (cur_idx + direction) % len(scales)
             state.light_orbit_scale = scales[next_idx]
+        elif row == LIGHT_ROW_DAY_CYCLE:
+            step = config.LIGHT_DAY_CYCLE_STEP
+            if direction > 0:
+                if state.light_day_cycle <= 0.0:
+                    state.light_day_cycle = config.LIGHT_DAY_CYCLE_MIN
+                else:
+                    state.light_day_cycle = min(
+                        config.LIGHT_DAY_CYCLE_MAX,
+                        state.light_day_cycle + step,
+                    )
+            else:
+                if state.light_day_cycle <= config.LIGHT_DAY_CYCLE_MIN:
+                    state.light_day_cycle = 0.0
+                    state.light_orbit_scale = 0.0
+                else:
+                    state.light_day_cycle = max(
+                        config.LIGHT_DAY_CYCLE_MIN,
+                        state.light_day_cycle - step,
+                    )
+        elif row == LIGHT_ROW_LM_SUB:
+            factors = LIGHT_SUB_SAMPLE_FACTORS
+            cur_idx = (
+                factors.index(state.light_sub_sample)
+                if state.light_sub_sample in factors
+                else 0
+            )
+            next_idx = (cur_idx + direction) % len(factors)
+            state.light_sub_sample = factors[next_idx]
 
     @staticmethod
     def _scrub_light_param(state: StudioState, delta_unit: float) -> None:
@@ -523,6 +554,24 @@ class InputHandler:
                     config.LIGHT_CONTRAST_MAX,
                     state.light_contrast
                     + (delta_unit * config.LIGHT_CONTRAST_RATE),
+                ),
+            )
+        elif row == LIGHT_ROW_SHADOW:
+            state.light_shadow_intensity = max(
+                0.0,
+                min(
+                    255.0,
+                    state.light_shadow_intensity
+                    + (delta_unit * config.LIGHT_INTENSITY_RATE),
+                ),
+            )
+        elif row == LIGHT_ROW_HIGHLIGHT:
+            state.light_highlight_intensity = max(
+                0.0,
+                min(
+                    255.0,
+                    state.light_highlight_intensity
+                    + (delta_unit * config.LIGHT_INTENSITY_RATE),
                 ),
             )
         elif row == LIGHT_ROW_AMBIENT:
