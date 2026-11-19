@@ -488,17 +488,17 @@ The 5 Studio Viewports (studio/renderers/):
 
 1. Mode 1: 1D Wave Oscilloscope (renderer_1d.py):
    - Four vertically stacked signal plots: Base Detail D(x), Relief Multiplier
-     M(x), Continental Crust C(x), and Composite Result (Panel 4 / [ALL
-     ACTIVE]).
+     M(x), Continental Crust C(x), and Composite Result (Panel 4).
    - Dirty-Frame Surface Cache: Rebuilds the oscilloscope surface only when
      state changes (needs_rebuild_1d), reducing idle frames to a single blit.
    - Smart Layer Silencing: On 2-layer formulas, Panel 2 (Relief) is silenced
      with a flat zero baseline while Panel 3 (Crust) remains active.
    - Direct Panel Selection: Click any active Panel 1-4 (or cycle with
-     UP/DOWN) to focus it; clicks on silenced Panel 2 are ignored. Selecting
-     Panel 4 ([ALL ACTIVE]) scales all active layers together, while holding
-     Left/Right or dragging smoothly tunes the dynamic elevation budget:
-     BUDGET: [ 0.40 C / 0.60 R ].
+     UP/DOWN) to focus its top-left title card in blue and cyan with static
+     card width; clicks on silenced Panel 2 are ignored. Selecting Panel 4
+     lets you hold Left/Right or drag to tune the dynamic elevation budget:
+     BUDGET: [ 0.40 C / 0.60 R ], while proportional zoom clamping preserves
+     frequency ratios across active layers (hold SHIFT to isolate one layer).
    - In-Place Hypsometric Fill & Vector Trace: Standard mode paints vertical
      LUT color columns directly into the cached surface using reusable scratch
      buffers; Net mode paints a multi-colored curve in one vectorized NumPy
@@ -521,9 +521,11 @@ The 5 Studio Viewports (studio/renderers/):
          straight stripes into winding mountain ranges.
    - Dual-Row Channel & Budget Deck:
      * UP / DOWN: Switches focus between the top Channel strip and the bottom
-       Elevation Budget line: BUDGET : [ 0.40 C / 0.60 R ].
+       Elevation Budget line: BUDGET : [ 0.40 C / 0.60 R ], framing the active
+       B/R/C channel or Budget cell in blue and cyan.
      * SHIFT + UP / DOWN: Cycles horizontal channel focus across Base, Relief,
-       and Crust layers.
+       and Crust layers. Zooming all active layers together stops at the first
+       layer limit hit to preserve wave frequency ratios.
 
 3. Mode 3: Raw Noise Inspector (renderer_noise.py):
    - Streams isolated noise builds from profiles/noise.yaml via ChunkManager.

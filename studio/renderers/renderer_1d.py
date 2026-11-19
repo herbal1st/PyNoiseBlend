@@ -55,14 +55,13 @@ class Renderer1D(BaseRenderer):
             fill_lut = active_lut
             line_lut = None
 
-        b_tag = " [ACTIVE]" if state.selected_panel_index == 0 else ""
         b_step = (
             f" [STEP: {state.tile_size}px]"
             if state.tile_stepping_enabled
             else ""
         )
         b_title = (
-            f"PANEL 1: BASE DETAIL WAVE D(x){b_tag}{b_step} | "
+            f"PANEL 1: BASE DETAIL WAVE D(x){b_step} | "
             f"CYCLES: {state.base_cycles:.1f} | "
             f"START: {config.BASE_START:.2f}"
         )
@@ -75,9 +74,8 @@ class Renderer1D(BaseRenderer):
         )
 
         if formula.uses_relief:
-            r_tag = " [ACTIVE]" if state.selected_panel_index == 1 else ""
             r_title = (
-                f"PANEL 2: RELIEF MULTIPLIER M(x){r_tag} | "
+                f"PANEL 2: RELIEF MULTIPLIER M(x) | "
                 f"CYCLES: {state.relief_cycles:.1f} | "
                 f"START: {config.RELIEF_START:.2f} | "
                 f"MIN_RELIEF: {config.MIN_RELIEF_FACTOR:.2f}"
@@ -104,9 +102,8 @@ class Renderer1D(BaseRenderer):
         )
 
         if formula.uses_crust:
-            c_tag = " [ACTIVE]" if state.selected_panel_index == 2 else ""
             c_title = (
-                f"PANEL 3: CONTINENTAL CRUST C(x){c_tag} | "
+                f"PANEL 3: CONTINENTAL CRUST C(x) | "
                 f"CYCLES: {state.crust_cycles:.2f} | "
                 f"START: {config.CRUST_START:.2f}"
             )
@@ -136,7 +133,6 @@ class Renderer1D(BaseRenderer):
         is_3layer = formula.uses_relief and formula.uses_crust
         layer_tag = "3-LAYER" if is_3layer else "2-LAYER"
         p4_selected = state.selected_panel_index == 3
-        p4_tag = " [ALL ACTIVE]" if p4_selected else ""
         bdg_str = (
             f"BUDGET: [ {state.crust_budget:.2f} C / "
             f"{state.relief_budget:.2f} R ]"
@@ -144,7 +140,7 @@ class Renderer1D(BaseRenderer):
         p4_title = (
             f"PANEL 4: [{state.composite_index + 1}/"
             f"{len(FORMULA_CATALOG)}] [{layer_tag}] "
-            f"{formula.name}{p4_tag}: {formula.shorthand} | "
+            f"{formula.name}: {formula.shorthand} | "
             f"RANGE: [{min_v:.3f}, {max_v:.3f}] | "
             f"{bdg_str} | PALETTE: {pal_name}"
         )
@@ -245,14 +241,6 @@ class Renderer1D(BaseRenderer):
                 line_width,
             )
 
-        if is_selected:
-            pygame.draw.rect(
-                self.cached_surface,
-                config.COLOR_SELECTION,
-                (1, y_top + 1, self.width - 2, panel_h - 2),
-                _PANEL_SELECTION_WIDTH,
-            )
-
         title_color = (
             config.COLOR_INPUT_ACTIVE
             if is_selected
@@ -277,6 +265,14 @@ class Renderer1D(BaseRenderer):
             title_surf,
             (tx + _PANEL_TITLE_TEXT_X, ty + _PANEL_TITLE_TEXT_Y),
         )
+
+        if is_selected:
+            pygame.draw.rect(
+                self.cached_surface,
+                config.COLOR_SELECTION,
+                (tx, ty, box_w, box_h),
+                _PANEL_SELECTION_WIDTH,
+            )
 
     def _render_vectorized_line(
         self,

@@ -108,10 +108,19 @@ def scale_wave_cycles(
     factor: float,
     single_layer: bool,
 ) -> None:
-    """Scales Mode 1/2 wave cycles with 2D center anchoring."""
+    """Scales active Mode 1/2 wave cycles proportionally, or one via SHIFT."""
+    safe_factor = max(1e-6, factor)
     scale_all = (not single_layer) or (
         state.active_mode == 1 and state.selected_panel_index == 3
     )
+    eff_factor = (
+        _clamp_group_cycle_factor(state, safe_factor)
+        if scale_all
+        else safe_factor
+    )
+    if scale_all and abs(eff_factor - 1.0) <= 1e-7:
+        return
+
     anchor_2d = state.active_mode == 2
 
     if scale_all or state.selected_panel_index == 0:
@@ -119,7 +128,7 @@ def scale_wave_cycles(
             state.base_cycles,
             config.BASE_MIN_CYCLES,
             config.BASE_MAX_CYCLES,
-            factor,
+            eff_factor,
         )
         if new_base != state.base_cycles:
             state.base_cycles = new_base
@@ -131,7 +140,7 @@ def scale_wave_cycles(
             state.relief_cycles,
             config.RELIEF_MIN_CYCLES,
             config.RELIEF_MAX_CYCLES,
-            factor,
+            eff_factor,
         )
         if new_relief != state.relief_cycles:
             state.relief_cycles = new_relief
@@ -143,12 +152,50 @@ def scale_wave_cycles(
             state.crust_cycles,
             config.CRUST_MIN_CYCLES,
             config.CRUST_MAX_CYCLES,
-            factor,
+            eff_factor,
         )
         if new_crust != state.crust_cycles:
             state.crust_cycles = new_crust
             if anchor_2d and _is_warped_2layer(state):
                 state.crust_offset_y *= ratio
+
+
+def _clamp_group_cycle_factor(
+    state: "StudioState",
+    factor: float,
+) -> float:
+    """Clamps zoom factor so all active layers preserve cycle ratios."""
+    if state.active_mode == 2:
+        layers = _get_active_layer_channels(state)
+    else:
+        layers = tuple(
+            ch for ch in get_valid_channels(state) if ch != 3
+        )
+
+    bounds = {
+        0: (
+            state.base_cycles,
+            config.BASE_MIN_CYCLES,
+            config.BASE_MAX_CYCLES,
+        ),
+        1: (
+            state.relief_cycles,
+            config.RELIEF_MIN_CYCLES,
+            config.RELIEF_MAX_CYCLES,
+        ),
+        2: (
+            state.crust_cycles,
+            config.CRUST_MIN_CYCLES,
+            config.CRUST_MAX_CYCLES,
+        ),
+    }
+    active_bounds = [bounds[ch] for ch in layers if ch in bounds]
+    if not active_bounds:
+        return factor
+
+    min_f = max(val / max_v for val, _, max_v in active_bounds)
+    max_f = min(val / min_v for val, min_v, _ in active_bounds)
+    return max(min_f, min(max_f, factor)) if min_f <= max_f else factor
 
 
 def _get_active_layer_channels(state: "StudioState") -> Tuple[int, ...]:
